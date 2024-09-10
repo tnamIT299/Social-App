@@ -1,4 +1,4 @@
-# Social App
+# Social App 📱🌐
 # Thành Viên
 -  Trịnh Thành Nam
 -  Phan Tấn Thịnh
