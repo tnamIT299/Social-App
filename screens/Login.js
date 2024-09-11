@@ -42,7 +42,7 @@ const Login = ({navigation}) => {
           } else {
             setError('');
             Alert.alert('Thông báo', 'Đăng nhập thành công!');
-            navigation.navigate('TabNavigation')
+            navigation.navigate('tabNavigation')
           }
         } catch (error) {
           console.error('Unexpected Error:', error); // Log lỗi bất ngờ ra console

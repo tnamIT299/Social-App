@@ -5,7 +5,7 @@ import Icon from 'react-native-vector-icons/FontAwesome6';
 import { supabase } from '../data/supabaseClient';
 
 const SignUp = ({ navigation }) => {
-    const [nickname, setNickname] = useState('');
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [ConfirmPassword, setConfirmPassword] = useState('');
@@ -26,35 +26,60 @@ const SignUp = ({ navigation }) => {
     const handleSignup = async () => {
         // Regex để kiểm tra định dạng email
         const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
-
+    
         // Kiểm tra điều kiện email
         if (!emailRegex.test(email)) {
             setError('Email không hợp lệ');
             return;
         }
-
+    
         if (password !== ConfirmPassword) {
             Alert.alert('Thông báo', 'Mật khẩu không khớp');
             return;
-          }
-
-        // Nếu email hợp lệ, tiếp tục thực hiện đăng ký
+        }
+    
         try {
+            setLoading(true);
+    
+            // Đăng ký tài khoản
             const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
             });
-
+    
             if (error) {
                 setError(error.message);
             } else {
-                setError('');
-                alert('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.');
+                // Lấy UID của tài khoản đã đăng ký
+                const { data: userData, error: userError } = await supabase.auth.getUser();
+                if (userError) {
+                    setError(userError.message);
+                } else {
+                    const uid = userData?.user?.id;
+                    console.log('UID:', uid); // In ra UID
+    
+                    // Thêm thông tin vào bảng user
+                    const { error: insertError } = await supabase
+                        .from('User')
+                        .insert([{ uid, name, email }]);
+    
+                    if (insertError) {
+                        setError(insertError.message);
+                    } else {
+                        setError('');
+                        alert('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.');
+                    }
+                }
             }
         } catch (error) {
             setError('Có lỗi xảy ra, vui lòng thử lại.');
+        } finally {
+            setLoading(false);
         }
     };
+    
+    
+    
 
     return (
         <ImageBackground
@@ -63,6 +88,16 @@ const SignUp = ({ navigation }) => {
         >
             <View style={styles.container}>
                 <Text style={styles.title}>WELCOME TO LOOPY</Text>
+
+                <View style={styles.passwordContainer}>
+                    <TextInput
+                        placeholder="Nickname"
+                        value={name}
+                        onChangeText={setName}
+                        style={styles.input}
+                        inputMode='text'
+                    />
+                </View>
 
                 <View style={styles.passwordContainer}>
                     <TextInput
