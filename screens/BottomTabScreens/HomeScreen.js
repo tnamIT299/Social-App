@@ -1,48 +1,49 @@
-import React ,{useState } from 'react';
-import { View, Text, TextInput, Image, StyleSheet, TouchableOpacity, ScrollView,Modal } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, Image, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import TabNavigation from '../../navigation/tabNavigation';
 
 const HomeScreen = () => {
   const [visible, setVisible] = useState(false);
 
-  const toggleMenu  = () => {
+  const toggleMenu = () => {
     setVisible(!visible);
   };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.logo}>Loopy</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={toggleMenu }>
+          <TouchableOpacity onPress={toggleMenu}>
             <Icon name="add-circle-outline" size={30} color="black" style={styles.icon} />
           </TouchableOpacity>
+
           {/* Modal for showing the menu */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={visible}
-        onRequestClose={toggleMenu }
-      >
-        <TouchableOpacity style={styles.modalOverlay} onPress={toggleMenu }>
-          <View style={styles.menuContainer}>
-            <TouchableOpacity style={styles.menuItem}>
-              <Text>Tạo bài viết</Text>
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={visible}
+            onRequestClose={toggleMenu}
+          >
+            <TouchableOpacity style={styles.modalOverlay} onPress={toggleMenu}>
+              <View style={styles.menuContainer}>
+                <TouchableOpacity style={styles.menuItem}>
+                  <Text>Tạo bài viết</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem}>
+                  <Text>Tạo tin</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem}>
+                  <Text>Tạo Short Video</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem}>
+                  <Text>Tạo Livestream</Text>
+                </TouchableOpacity>
+              </View>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem}>
-              <Text>Tạo tin</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem}>
-              <Text>Tạo Short Video</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem}>
-              <Text>Tạo Livestream</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+          </Modal>
 
           <TouchableOpacity>
             <Icon name="search-outline" size={30} color="black" style={styles.icon} />
@@ -66,16 +67,16 @@ const HomeScreen = () => {
         <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
       </View>
 
-      {/* Post cards */}
+      {/* Post cards with horizontal ScrollView */}
       <ScrollView>
-        <View style={styles.cardContainer}>
-          {['Username', 'Username', 'Username'].map((name, index) => (
+        <ScrollView horizontal={true} style={styles.cardContainer} showsHorizontalScrollIndicator={false}>
+          {['Username1', 'Username2', 'Username3','Username3','Username3','Username3'].map((name, index) => (
             <View key={index} style={styles.card}>
               <Image source={{ uri: 'https://via.placeholder.com/150' }} style={styles.cardImage} />
               <Text style={styles.cardText}>{name}</Text>
             </View>
           ))}
-        </View>
+        </ScrollView>
       </ScrollView>
     </SafeAreaView>
   );
@@ -103,7 +104,6 @@ const styles = StyleSheet.create({
   headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 5,
   },
   icon: {
     marginHorizontal: 5,
@@ -149,12 +149,14 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    right:10,
   },
   card: {
     width: 100,
     alignItems: 'center',
+    marginHorizontal: 10,
   },
   cardImage: {
     width: 100,
@@ -163,13 +165,6 @@ const styles = StyleSheet.create({
   },
   cardText: {
     marginTop: 5,
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
   },
   menuContainer: {
     position: 'absolute',
