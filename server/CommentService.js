@@ -1,24 +1,18 @@
 import { supabase } from "../data/supabaseClient";
 
-export const createPost = async (postDetails) => {
-  const { title, desc, imageUri, userId } = postDetails;
+export const sendComment = async (commentDetails) => {
+  const { newComment, userId, postId } = commentDetails;
 
   try {
-    const post = {
-      pid: generateUniqueId(), // Sinh ID duy nhất
-      ptitle: title || "",
-      pdesc: desc || "",
-      pimage: imageUri || "",
-      pvideo: "", // Hoặc giá trị khác nếu có video
-      plike: 0,
-      pcomment: 0,
-      pshare: 0,
-      permission: "cộng đồng", // Hoặc giá trị khác nếu cần
-      uid: userId || "", // Sử dụng userId từ CreatePost
-      createdat: getLocalISOString(),
+    const comment = {
+      cid: generateUniqueId(),
+      comment: newComment,
+      timestamp: getLocalISOString(),
+      uid: userId,
+      pid: postId,
     };
 
-    const { data, error } = await supabase.from("Post").insert([post]);
+    const { data, error } = await supabase.from("Comment").insert([comment]);
 
     if (error) {
       throw error;

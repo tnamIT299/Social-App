@@ -34,9 +34,8 @@ const HomeScreen = () => {
     navigation.navigate("CreatePost"); // Navigate to CreatePost screen
   };
 
-  const handlePostDetailScreen = () => {
-    toggleMenu(); // Close menu
-    navigation.navigate("PostDetailScreen"); // Navigate to CreatePost screen
+  const handlePostDetailScreen = (postId) => {
+    navigation.navigate("PostDetailScreen", { postId }); // Navigate to CreatePost screen
   };
 
   const fetchPosts = async () => {
@@ -136,16 +135,21 @@ const HomeScreen = () => {
         <Text style={styles.logo}>Loopy</Text>
         <View style={styles.headerIcons}>
           <TouchableOpacity onPress={toggleMenu}>
-            <Ionicons name="add-circle-outline" size={30} color="black" style={styles.icon} />
+            <Ionicons
+              name="add-circle-outline"
+              size={30}
+              color="black"
+              style={styles.icon}
+            />
           </TouchableOpacity>
 
-          {/* Modal for showing the menu */}
           <Modal
             animationType="fade"
             transparent={true}
             visible={visible}
-            onRequestClose={toggleMenu}
+            onRequestClose={toggleMenu} // Đóng modal khi nhấn nút back trên Android
           >
+            {/* Vùng overlay bên ngoài modal */}
             <TouchableOpacity style={styles.modalOverlay} onPress={toggleMenu}>
               <View style={styles.menuContainer}>
                 <TouchableOpacity style={styles.menuItem} onPress={handleCreatePost}>
@@ -164,13 +168,24 @@ const HomeScreen = () => {
             </TouchableOpacity>
           </Modal>
 
+
+
           <TouchableOpacity>
-            <Ionicons name="search-outline" size={30} color="black" style={styles.icon} />
+            <Ionicons
+              name="search-outline"
+              size={30}
+              color="black"
+              style={styles.icon}
+            />
           </TouchableOpacity>
 
           <View style={styles.notificationIcon}>
             <TouchableOpacity>
-              <Ionicons name="chatbubble-ellipses-outline" size={30} color="black" />
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={30}
+                color="black"
+              />
             </TouchableOpacity>
 
             <View style={styles.notificationBadge}>
@@ -182,16 +197,33 @@ const HomeScreen = () => {
 
       {/* Post input */}
       <View style={styles.postInputContainer}>
-        <Image source={{ uri: 'https://via.placeholder.com/150' }} style={styles.avatar} />
+        <Image
+          source={{ uri: "https://via.placeholder.com/150" }}
+          style={styles.avatar}
+        />
         <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
       </View>
 
       {/* Post cards with horizontal ScrollView */}
-      <ScrollView style={{marginBottom:30}}>
-        <ScrollView horizontal={true} style={styles.storyContainer} showsHorizontalScrollIndicator={false}>
-          {['Username1', 'Username2', 'Username3','Username3','Username3','Username3'].map((name, index) => (
+      <ScrollView style={{ marginBottom: 30 }}>
+        <ScrollView
+          horizontal={true}
+          style={styles.storyContainer}
+          showsHorizontalScrollIndicator={false}
+        >
+          {[
+            "Username1",
+            "Username2",
+            "Username3",
+            "Username3",
+            "Username3",
+            "Username3",
+          ].map((name, index) => (
             <View key={index} style={styles.storyCard}>
-              <Image source={{ uri: 'https://via.placeholder.com/150' }} style={styles.storyCardImage} />
+              <Image
+                source={{ uri: "https://via.placeholder.com/150" }}
+                style={styles.storyCardImage}
+              />
               <Text style={styles.storyCardText}>{name}</Text>
             </View>
           ))}
@@ -210,7 +242,10 @@ const HomeScreen = () => {
           <View style={styles.cardContainer}>
             {posts.map((post) => (
               <View key={post.pid} style={styles.card}>
-                <TouchableOpacity onPress={handlePostDetailScreen}>
+                <TouchableOpacity
+                  key={post.pid}
+                  onPress={() => handlePostDetailScreen(post.pid)}
+                >
                   <View style={styles.userInfo}>
                     <View style={styles.user}>
                       {post.user?.avatar ? (
@@ -284,7 +319,7 @@ const HomeScreen = () => {
                     </Text>
                     <TouchableOpacity
                       style={styles.actionButton}
-                      //onPress={handleComment}
+                    //onPress={handleComment}
                     >
                       <Ionicons
                         name="chatbubble-outline"
@@ -299,7 +334,7 @@ const HomeScreen = () => {
                     <Text style={styles.statText}>{post.pshare} chia sẻ</Text>
                     <TouchableOpacity
                       style={styles.actionButton}
-                      //onPress={handleShare}
+                    //onPress={handleShare}
                     >
                       <Ionicons
                         name="share-social-outline"
@@ -314,10 +349,7 @@ const HomeScreen = () => {
             ))}
           </View>
         )}
-
-
       </ScrollView>
-
     </SafeAreaView>
   );
 };
@@ -397,7 +429,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#DDDDDD",
     paddingBottom: 10,
-    padding:15
+    padding: 15,
   },
   userInfo: {
     flexDirection: "column",
@@ -499,14 +531,14 @@ const styles = StyleSheet.create({
     bottom: 10,
   },
   storyContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: 10,
-    right:10,
+    right: 10,
   },
   storyCard: {
     width: 100,
     marginVertical: 10,
-    alignItems: 'center',
+    alignItems: "center",
     marginHorizontal: 10,
   },
   storyCardImage: {
