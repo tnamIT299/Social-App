@@ -11,7 +11,7 @@ import {
   Button,
   Alert,
   KeyboardAvoidingView,
-  Platform
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons";
@@ -22,6 +22,7 @@ import {
 } from "@react-navigation/native";
 import { supabase } from "../../data/supabaseClient";
 import { sendComment } from "../../server/CommentService";
+import { getUserName, getUserAvatar } from "../../data/getUserData";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
@@ -38,6 +39,8 @@ const PostDetailScreen = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [likedPosts, setLikedPosts] = useState({});
+  const [userName, setUserName] = useState("");
+  const [userAvatar, setUserAvatar] = useState("");
   const navigation = useNavigation();
   const route = useRoute();
   const { postId } = route.params || {}; // Get postId from route params
@@ -65,9 +68,6 @@ const PostDetailScreen = () => {
           throw postError;
         }
 
-        // Log the post data for debugging
-        console.log("Post data:", postData);
-
         // Fetch post's comments with user data
         const { data: commentsData, error: commentsError } = await supabase
           .from("Comment")
@@ -79,11 +79,19 @@ const PostDetailScreen = () => {
           throw commentsError;
         }
 
-        // Log the comments data for debugging
-        console.log("Comments data:", commentsData);
+        // Sort comments by timestamp in ascending order
+        const sortedComments = commentsData.sort(
+          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+        );
 
         setPost(postData);
-        setComments(commentsData);
+        setComments(sortedComments);
+
+        //Lấy dữ liệu người dùng
+        const name = await getUserName();
+        const avatar = await getUserAvatar();
+        setUserName(name);
+        setUserAvatar(avatar);
       }
     } catch (error) {
       console.error("Error fetching post details:", error);
@@ -93,35 +101,45 @@ const PostDetailScreen = () => {
     }
   };
 
-  const handleLike = async (postId, isLiked, likeCount) => {
+  const handleLike = async (postId, isLiked) => {
     try {
-      // Update like status and count in local state
-      const updatedLikeCount = isLiked ? likeCount - 1 : likeCount + 1;
-      setPosts((prevPosts) =>
-        prevPosts.map((post) =>
-          post.pid === postId ? { ...post, pLike: updatedLikeCount } : post
-        )
-      );
+      // Update the UI first
+      const currentLikeCount = post.plike;
+      const updatedLikeCount = isLiked
+        ? currentLikeCount - 1
+        : currentLikeCount + 1;
+      setPost((prevPost) => ({
+        ...prevPost,
+        plike: updatedLikeCount,
+      }));
 
-      // Update liked status
+      // Update the liked status
       setLikedPosts((prevLikedPosts) => ({
         ...prevLikedPosts,
         [postId]: !isLiked,
       }));
 
-      // Cập nhật số lượt thích trong cơ sở dữ liệu
+      // Update the like count in the database after UI update
       await updateLikeCount(postId, !isLiked);
-
-      // Tải lại danh sách bài viết để đảm bảo giao diện được cập nhật
-      await fetchPostDetails();
     } catch (error) {
       console.error("Error handling like:", error.message);
+
+      // If there's an error, revert the like count on the UI
+      setPost((prevPost) => ({
+        ...prevPost,
+        plike: post.plike,
+      }));
+
+      setLikedPosts((prevLikedPosts) => ({
+        ...prevLikedPosts,
+        [postId]: isLiked,
+      }));
     }
   };
 
   const updateLikeCount = async (postId, increment) => {
     try {
-      // Nếu bạn sử dụng giá trị cũ và muốn thực hiện phép toán trên server, bạn cần một stored procedure hoặc tương tự.
+      // Update the like count in the database
       const { data: post, error: postError } = await supabase
         .from("Post")
         .select("plike")
@@ -148,42 +166,46 @@ const PostDetailScreen = () => {
       Alert.alert("Error", "User ID is not available.");
       return;
     }
-  
+
     if (newComment.trim() === "") return; // Không gửi bình luận rỗng
-  
+
     const commentDetails = {
       newComment: newComment,
       userId: userId,
       postId: postId,
     };
-  
+
     // Tạo bình luận tạm thời để hiển thị lên giao diện ngay lập tức
     const tempComment = {
       cid: Date.now(), // Sử dụng tạm thời ID để không trùng lặp
       comment: newComment,
       User: {
-        name: "Bạn", // Hiển thị tên người dùng hiện tại
-        avatar: "https://via.placeholder.com/150", // Hoặc avatar của người dùng từ profile
+        name: userName, // Hiển thị tên người dùng hiện tại
+        avatar: userAvatar || "https://via.placeholder.com/150", // Hoặc avatar của người dùng từ profile
       },
       timestamp: new Date().toISOString(),
     };
-  
+
     // Thêm bình luận mới vào giao diện ngay lập tức
-    setComments((prevComments) => [tempComment, ...prevComments]);
-  
+    setComments((prevComments) =>
+      [tempComment, ...prevComments].sort(
+        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+      )
+    );
+
     // Reset khung nhập liệu
     setNewComment("");
-  
+
     try {
       // Gửi bình luận lên Supabase
       const success = await sendComment(commentDetails);
-  
+
       if (!success) {
         Alert.alert("Error", "Lỗi khi gửi bình luận");
       } else {
         // Tăng số lượng bình luận
         await incrementCommentCount(postId);
-        
+
         // Cập nhật số lượng bình luận mới trên bài đăng
         setPost((prevPost) => ({
           ...prevPost,
@@ -194,7 +216,6 @@ const PostDetailScreen = () => {
       console.error("Error sending comment:", error.message);
     }
   };
-  
 
   const incrementCommentCount = async (postId) => {
     try {
@@ -311,11 +332,7 @@ const PostDetailScreen = () => {
                   <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() =>
-                      handleLike(
-                        post.pid,
-                        likedPosts[post.pid] || false,
-                        post.pLike
-                      )
+                      handleLike(post.pid, likedPosts[post.pid] || false)
                     }
                   >
                     <Ionicons
@@ -331,9 +348,13 @@ const PostDetailScreen = () => {
                   <Text style={styles.statText}>{post.pcomment} bình luận</Text>
                   <TouchableOpacity
                     style={styles.actionButton}
-                  //onPress={handleComment}
+                    //onPress={handleComment}
                   >
-                    <Ionicons name="chatbubble-outline" size={16} color="black" />
+                    <Ionicons
+                      name="chatbubble-outline"
+                      size={16}
+                      color="black"
+                    />
                     <Text style={styles.actionText}>Comment</Text>
                   </TouchableOpacity>
                 </View>
@@ -342,7 +363,7 @@ const PostDetailScreen = () => {
                   <Text style={styles.statText}>{post.pshare} chia sẻ</Text>
                   <TouchableOpacity
                     style={styles.actionButton}
-                  //onPress={handleShare}
+                    //onPress={handleShare}
                   >
                     <Ionicons
                       name="share-social-outline"
@@ -374,8 +395,12 @@ const PostDetailScreen = () => {
                         />
                       )}
                       <View style={styles.contentContainer}>
-                        <Text style={styles.userName}>{comment.User?.name}</Text>
-                        <Text style={styles.commentText}>{comment.comment}</Text>
+                        <Text style={styles.userName}>
+                          {comment.User?.name}
+                        </Text>
+                        <Text style={styles.commentText}>
+                          {comment.comment}
+                        </Text>
                       </View>
                     </View>
 
@@ -511,7 +536,7 @@ const styles = StyleSheet.create({
   commentsContainer: {
     marginTop: 20,
     flexDirection: "column",
-    padding:5,
+    padding: 5,
   },
   commentCard: {
     flexDirection: "column",
@@ -567,8 +592,8 @@ const styles = StyleSheet.create({
   backButtonContainer: {
     position: "static",
     flexDirection: "row",
-    backgroundColor: '#bbb',
-    padding: 15
+    backgroundColor: "#bbb",
+    padding: 15,
   },
   titleview: {
     flex: 0.9,

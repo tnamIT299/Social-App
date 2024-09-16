@@ -29,6 +29,38 @@ const HomeScreen = () => {
   const [likedPosts, setLikedPosts] = useState({});
   const navigation = useNavigation();
 
+  const [avatarUrl, setAvatarUrl] = useState(null);
+
+  useEffect(() => {
+    const fetchUserAvatar = async () => {
+      // Fetch the current user's session
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error("Error fetching user:", userError);
+        return;
+      }
+
+      if (user) {
+        const { data, error } = await supabase
+          .from('User')
+          .select('avatar')
+          .eq('uid', user.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching user data: ", error);
+        } else {
+          setAvatarUrl(data.avatar); // Save avatar URL in state
+        }
+      }
+    };
+    fetchUserAvatar();
+  }, []);
+
   const handleCreatePost = () => {
     toggleMenu(); // Close menu
     navigation.navigate("CreatePost"); // Navigate to CreatePost screen
@@ -60,7 +92,12 @@ const HomeScreen = () => {
         })
       );
 
-      setPosts(updatedPosts);
+      // Sắp xếp bài đăng theo thời gian từ muộn đến sớm
+      const sortedPosts = updatedPosts.sort(
+        (a, b) => new Date(b.createdat) - new Date(a.createdat)
+      );
+
+      setPosts(sortedPosts);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -152,7 +189,10 @@ const HomeScreen = () => {
             {/* Vùng overlay bên ngoài modal */}
             <TouchableOpacity style={styles.modalOverlay} onPress={toggleMenu}>
               <View style={styles.menuContainer}>
-                <TouchableOpacity style={styles.menuItem} onPress={handleCreatePost}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleCreatePost}
+                >
                   <Text>Tạo bài viết</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuItem}>
@@ -167,8 +207,6 @@ const HomeScreen = () => {
               </View>
             </TouchableOpacity>
           </Modal>
-
-
 
           <TouchableOpacity>
             <Ionicons
@@ -197,10 +235,12 @@ const HomeScreen = () => {
 
       {/* Post input */}
       <View style={styles.postInputContainer}>
-        <Image
-          source={{ uri: "https://via.placeholder.com/150" }}
-          style={styles.avatar}
-        />
+      <Image
+        source={{
+          uri: avatarUrl || "https://via.placeholder.com/150",
+        }}
+        style={styles.avatar}
+      />
         <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
       </View>
 
@@ -209,7 +249,7 @@ const HomeScreen = () => {
         <ScrollView
           horizontal={true}
           style={styles.storyContainer}
-          showsHorizontalScrollIndicator={false}
+          showsHorizontalScrollIndicator={true}
         >
           {[
             "Username1",
@@ -319,7 +359,7 @@ const HomeScreen = () => {
                     </Text>
                     <TouchableOpacity
                       style={styles.actionButton}
-                    //onPress={handleComment}
+                      //onPress={handleComment}
                     >
                       <Ionicons
                         name="chatbubble-outline"
@@ -334,7 +374,7 @@ const HomeScreen = () => {
                     <Text style={styles.statText}>{post.pshare} chia sẻ</Text>
                     <TouchableOpacity
                       style={styles.actionButton}
-                    //onPress={handleShare}
+                      //onPress={handleShare}
                     >
                       <Ionicons
                         name="share-social-outline"

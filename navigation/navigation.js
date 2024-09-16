@@ -6,9 +6,10 @@ import Login from "../screens/Login";
 import SignUp from "../screens/SignUp";
 import ForgetPassword from "../screens/ForgetPassword";
 import TabNavigation from "./tabNavigation";
-import CreatePost from "../screens/AddScreens/CreatePost";
-import PostDetailScreen from "../screens/AddScreens/PostDetailScreen";
+import CreatePost from "../screens/PostScreens/CreatePost";
+import PostDetailScreen from "../screens/PostScreens/PostDetailScreen";
 import * as Linking from "expo-linking";
+import { FriendsScreen } from "../screens/BottomTabScreens";
 const Stack = createStackNavigator();
 
 function Navigation() {
@@ -25,6 +26,7 @@ function Navigation() {
         <Stack.Screen name="TabNavigation" component={TabNavigation} />
         <Stack.Screen name="CreatePost" component={CreatePost} />
         <Stack.Screen name="PostDetailScreen" component={PostDetailScreen} />
+        <Stack.Screen name="FriendsScreen" component={FriendsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
