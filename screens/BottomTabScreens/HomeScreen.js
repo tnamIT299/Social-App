@@ -241,7 +241,8 @@ const HomeScreen = () => {
         }}
         style={styles.avatar}
       />
-        <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
+        <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?"
+        onPress={handleCreatePost} />
       </View>
 
       {/* Post cards with horizontal ScrollView */}

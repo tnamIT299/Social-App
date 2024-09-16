@@ -1,10 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView,Alert } from 'react-native';
 import { Ionicons, FontAwesome6, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../data/supabaseClient';
 
 const MenuScreen = ({navigation}) => {
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    const fetchUserAvatar = async () => {
+      // Fetch the current user's session
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error("Error fetching user:", userError);
+        return;
+      }
+
+      if (user) {
+        const { data, error } = await supabase
+          .from('User')
+          .select('avatar, name')
+          .eq('uid', user.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching user data: ", error);
+        } else {
+          setUsername(data.name); // Save username in state
+          setAvatarUrl(data.avatar); // Save avatar URL in state
+        }
+      }
+    };
+    fetchUserAvatar();
+  }, []);
+
+
   const handleSignOut = () => {
     Alert.alert(
       "Xác nhận đăng xuất",
@@ -40,10 +75,12 @@ const MenuScreen = ({navigation}) => {
         {/* Thông tin người dùng */}
         <TouchableOpacity style={styles.userInfo}>
           <Image
-            source={{ uri: 'https://via.placeholder.com/50' }} // URL của ảnh đại diện
+           source={{
+            uri: avatarUrl || "https://via.placeholder.com/150",
+          }}
             style={styles.userImage}
           />
-          <Text style={styles.userName}>Username</Text>
+          <Text style={styles.userName}>{username}</Text>
         </TouchableOpacity>
         <ScrollView>
         {/* Danh sách mục menu */}

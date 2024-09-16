@@ -10,6 +10,7 @@ import CreatePost from "../screens/PostScreens/CreatePost";
 import PostDetailScreen from "../screens/PostScreens/PostDetailScreen";
 import * as Linking from "expo-linking";
 import { FriendsScreen } from "../screens/BottomTabScreens";
+import { AddProductScreen } from "../screens/ProductScreens";
 const Stack = createStackNavigator();
 
 function Navigation() {
@@ -27,6 +28,10 @@ function Navigation() {
         <Stack.Screen name="CreatePost" component={CreatePost} />
         <Stack.Screen name="PostDetailScreen" component={PostDetailScreen} />
         <Stack.Screen name="FriendsScreen" component={FriendsScreen} />
+
+
+        {/*Product Screen*/}
+        <Stack.Screen name="AddProductScreen" component={AddProductScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
