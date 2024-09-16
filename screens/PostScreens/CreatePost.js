@@ -13,7 +13,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import * as ImagePicker from "expo-image-picker";
 import { createPost } from "../../server/PostService";
 import { supabase } from "../../data/supabaseClient";
-import Icon from "react-native-vector-icons/FontAwesome";
+import Icon from "react-native-vector-icons/Ionicons";
 
 const Stack = createStackNavigator();
 
@@ -131,8 +131,9 @@ const CreatePostTab = () => {
         onChangeText={setPostText}
       />
 
-      <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
-        <Text style={styles.imagePickerText}>Pick an Image</Text>
+    <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
+        <Icon name="share-outline" size={24} color='#fff' />
+        <Text style={styles.imagePickerText}>Chọn hình ảnh</Text>
       </TouchableOpacity>
 
       <View style={styles.imagePreviewContainer}>
@@ -164,7 +165,7 @@ const CreatePostStack = ({ navigation }) => {
           headerTitleStyle: { fontWeight: "bold" },
           headerLeft: () => (
             <Icon
-              name="chevron-left"
+              name="chevron-back-outline"
               size={20}
               onPress={() => navigation.goBack()}
               style={{ color: "#FFFFFF", marginLeft: 20 }}
@@ -221,6 +222,8 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   imagePickerButton: {
+    flexDirection: "row",
+    justifyContent: "center",
     backgroundColor: "#007BFF",
     padding: 10,
     borderRadius: 10,

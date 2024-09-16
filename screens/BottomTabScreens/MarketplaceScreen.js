@@ -16,7 +16,7 @@ import { supabase } from "../../data/supabaseClient";
 
 const MarketplaceScreen = () => {
   const navigation = useNavigation();
-  const [products, setProducts] = useState([]); 
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProducts = async () => {
@@ -60,6 +60,10 @@ const MarketplaceScreen = () => {
     navigation.navigate("AddProductScreen");
   };
 
+  const handleMyListProductPost = () => {
+    navigation.navigate("MyListProductPost");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -75,6 +79,10 @@ const MarketplaceScreen = () => {
             />
           </TouchableOpacity>
 
+          <TouchableOpacity onPress={handleMyListProductPost}>
+            <Icon name="person-circle-outline" size={30} style={styles.icon} />
+          </TouchableOpacity>
+
           <TouchableOpacity>
             <Icon
               name="search-outline"
@@ -87,12 +95,12 @@ const MarketplaceScreen = () => {
       </View>
 
       <FlatList
-      data={products}
-      renderItem={renderItem}
-      keyExtractor={(item) => item.productid}  // Sử dụng productid
-      numColumns={2}
-      contentContainerStyle={styles.grid}
-    />
+        data={products}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.productid} // Sử dụng productid
+        numColumns={2}
+        contentContainerStyle={styles.grid}
+      />
     </SafeAreaView>
   );
 };
@@ -228,7 +236,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    color:'red',
+    color: "red",
     marginVertical: 10,
   },
   price: {

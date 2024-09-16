@@ -14,7 +14,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import * as ImagePicker from "expo-image-picker";
 import { createProductPost } from "../../server/ProductPostService";
 import { supabase } from "../../data/supabaseClient";
-import Icon from "react-native-vector-icons/FontAwesome";
+import Icon from "react-native-vector-icons/Ionicons";
 import RNPickerSelect from "react-native-picker-select";
 
 const Stack = createStackNavigator();
@@ -177,7 +177,7 @@ const AddProductScreenTab = () => {
           { label: "Chăm sóc cá nhân", value: "Chăm sóc cá nhân" },
           { label: "Đồ điện tử", value: "Đồ điện tử" },
           { label: "Xe cộ", value: "Xe cộ" },
-          { label: "Nhà đất", value: "Nhà đất" },
+          { label: "Nhà đất", value: "Nhà đất" }, 
         ]}
         style={pickerSelectStyles}
         placeholder={{ label: "Hạng mục", value: null }}
@@ -197,6 +197,7 @@ const AddProductScreenTab = () => {
       </View>
 
       <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
+        <Icon name="share-outline" size={24} color='#fff' />
         <Text style={styles.imagePickerText}>Chọn hình ảnh</Text>
       </TouchableOpacity>
 
@@ -229,7 +230,7 @@ const AddProductScreenStack = ({ navigation }) => {
           headerTitleStyle: { fontWeight: "bold" },
           headerLeft: () => (
             <Icon
-              name="chevron-left"
+              name="chevron-back-outline"
               size={20}
               onPress={() => navigation.goBack()}
               style={{ color: "#FFFFFF", marginLeft: 20 }}
@@ -304,8 +305,11 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   imagePickerButton: {
+    flexDirection:'row',
     backgroundColor: "#007BFF",
     padding: 10,
+    justifyContent: "center",
+    marginBottom: 20,
     borderRadius: 10,
     alignItems: "center",
     marginBottom: 20,
