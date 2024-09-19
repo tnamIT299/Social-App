@@ -8,20 +8,24 @@ import {
   ActivityIndicator,
   FlatList,
   TextInput,
+  Modal,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
+import { deleteProductPost } from "../../server/ProductPostService";
 import { supabase } from "../../data/supabaseClient";
 import { createStackNavigator } from "@react-navigation/stack";
 const Stack = createStackNavigator();
 
-const MyListProductPost = () => {
+const MyListProductPostTab = () => {
   const navigation = useNavigation();
+  const [visible, setVisible] = useState(false);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [textSearch, setTextSearch] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [selectedProductId, setSelectedProductId] = useState(null); // State to keep track of selected product ID
 
   const fetchProducts = async () => {
     const {
@@ -70,8 +74,61 @@ const MyListProductPost = () => {
     }
   }, [textSearch, products]);
 
+  const toggleMenu = (productId) => {
+    setSelectedProductId(productId); // Set the selected product ID when menu is opened
+    setVisible(!visible);
+  };
+
+  const handleDetailProductPost = () => {
+    if (selectedProductId) {
+      navigation.navigate("DetailProductPost", { productId: selectedProductId });
+      toggleMenu(); // Close menu after navigating
+    }
+  };
+
+  const handleDeleteProductPost = (productid) => {
+    toggleMenu();
+    deleteProductPost(productid, fetchProducts);
+  };
+
   const renderItem = ({ item }) => (
     <View style={styles.card}>
+      <Icon 
+        name="ellipsis-vertical-outline" 
+        size={20} 
+        color="black" 
+        style={{ position: "absolute", right: 5, top: 10 }} 
+        onPress={() => toggleMenu(item.productid)} // Pass the product ID to toggleMenu
+      />
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={visible}
+        onRequestClose={toggleMenu} // Đóng modal khi nhấn nút back trên Android
+      >
+        <TouchableOpacity style={styles.modalOverlay} onPress={toggleMenu}>
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleDetailProductPost} // Use handleDetailProductPost directly
+            >
+              <Text>Xem chi tiết</Text> 
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+            >
+              <Text>Sửa thông tin</Text> 
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleDeleteProductPost(selectedProductId)} // Use selectedProductId
+            >
+              <Text>Xoá</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
       <Image source={{ uri: item.productimage }} style={styles.image} />
       <Text style={styles.title}>{item.productname}</Text>
       <Text style={styles.price}>{item.productprice} VNĐ</Text>
@@ -116,8 +173,8 @@ const MyListProductPostStack = ({ navigation }) => {
   return (
     <Stack.Navigator>
       <Stack.Screen
-        name="MyListProductPost"
-        component={MyListProductPost}
+        name="MyListProductPostTab"
+        component={MyListProductPostTab}
         options={{
           headerTitle: "Bài niêm yết của bạn",
           headerTitleAlign: "center",
@@ -205,6 +262,25 @@ const styles = StyleSheet.create({
   notFoundText: {
     fontSize: 18,
     color: "gray",
+  },
+  menuContainer: {
+    position: "absolute",
+    right: 130,
+    top: 50,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  menuItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
   },
 });
 

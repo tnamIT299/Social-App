@@ -1,5 +1,6 @@
 import { supabase } from "../data/supabaseClient";
 import * as FileSystem from "expo-file-system";
+import { Alert } from 'react-native';
 
 export const createProductPost = async (productPostDetails) => {
   const { title, price, desc,status, imageUri,category, userId } = productPostDetails;
@@ -77,6 +78,46 @@ export const createProductPost = async (productPostDetails) => {
     console.error("Lỗi tạo bài viết:", error);
     return false;
   }
+};
+
+export const deleteProductPost = async (productId, fetchProducts) => {
+  Alert.alert(
+    "Xác nhận xóa",
+    "Bạn có chắc chắn muốn xóa sản phẩm này không?",
+    [
+      {
+        text: "Hủy",
+        style: "cancel",
+      },
+      {
+        text: "Đồng ý",
+        onPress: async () => {
+          const { data, error } = await supabase
+            .from("ProductPost")
+            .delete()
+            .eq("productid", productId);
+
+          if (error) {
+            console.log("Lỗi khi xóa sản phẩm:", error);
+          } else {
+            Alert.alert(
+              "Thông báo",
+              "Xóa sản phẩm thành công!", 
+              [
+                {
+                  text: "OK", 
+                },
+              ]
+            );
+            if (fetchProducts) {
+              fetchProducts();
+            }
+          }
+        },
+      },
+    ],
+    { cancelable: true }
+  );
 };
 
 // Hàm lấy tên tệp từ URI

@@ -10,7 +10,7 @@ import CreatePost from "../screens/PostScreens/CreatePost";
 import PostDetailScreen from "../screens/PostScreens/PostDetailScreen";
 import * as Linking from "expo-linking";
 import { FriendsScreen } from "../screens/BottomTabScreens";
-import { AddProductScreen, MyListProductPost } from "../screens/ProductScreens";
+import { AddProductScreen, MyListProductPost,DetailProductPost } from "../screens/ProductScreens";
 const Stack = createStackNavigator();
 
 function Navigation() {
@@ -33,6 +33,7 @@ function Navigation() {
         {/*Product Screen*/}
         <Stack.Screen name="AddProductScreen" component={AddProductScreen} />
         <Stack.Screen name="MyListProductPost" component={MyListProductPost} />
+        <Stack.Screen name="DetailProductPost" component={DetailProductPost} />
       </Stack.Navigator>
     </NavigationContainer>
   );

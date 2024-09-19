@@ -13,11 +13,13 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
 import { supabase } from "../../data/supabaseClient";
+import RNPickerSelect from "react-native-picker-select";
 
 const MarketplaceScreen = () => {
   const navigation = useNavigation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [productCategory, setProductCategory] = useState("");
 
   const fetchProducts = async () => {
     const { data, error } = await supabase
@@ -34,9 +36,31 @@ const MarketplaceScreen = () => {
     setLoading(false); // Tắt loading khi có dữ liệu
   };
 
+  const fetchProductsType = async () => {
+    const { data, error } = await supabase
+      .from("ProductPost") // tên bảng
+      .select("productid, productname, productprice, productimage") // các cột cần lấy
+      .eq("productcategory", productCategory);
+
+    if (error) {
+      console.log("Lỗi khi lấy dữ liệu:", error);
+    } else {
+      console.log("Dữ liệu:", data);
+      setProducts(data); // Cập nhật state products với dữ liệu lấy từ Supabase
+    }
+
+    setLoading(false); // Tắt loading khi có dữ liệu
+  };
+
   useEffect(() => {
     fetchProducts(); // Gọi khi component được mount
   }, []);
+
+  useEffect(() => {
+    if (productCategory) {
+      fetchProductsType(); // Chỉ gọi khi có productCategory
+    }
+  }, [productCategory]);
 
   useFocusEffect(
     useCallback(() => {
@@ -94,7 +118,27 @@ const MarketplaceScreen = () => {
         </View>
       </View>
 
+      <View style={{padding:10}}>
+      <RNPickerSelect
+        onValueChange={(value) => setProductCategory(value)}
+        items={[
+          { label: "Đồ dùng gia đình", value: "Đồ dùng gia đình" },
+          { label: "Đồ ăn thực phẩm", value: "Đồ ăn thực phẩm" },
+          { label: "Giải trí", value: "Giải trí" },
+          { label: "Quần áo tư trang", value: "Quần áo tư trang" },
+          { label: "Chăm sóc cá nhân", value: "Chăm sóc cá nhân" },
+          { label: "Đồ điện tử", value: "Đồ điện tử" },
+          { label: "Xe cộ", value: "Xe cộ" },
+          { label: "Nhà đất", value: "Nhà đất" }, 
+        ]}
+        style={pickerSelectStyles}
+        placeholder={{ label: "Tất cả sản phẩm", value: null }}
+      />
+      </View>
+
+      
       <FlatList
+        style={{marginBottom:60}}
         data={products}
         renderItem={renderItem}
         keyExtractor={(item) => item.productid} // Sử dụng productid
@@ -242,6 +286,32 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 14,
     color: "gray",
+  },
+});
+
+const pickerSelectStyles = StyleSheet.create({
+  inputIOS: {
+    fontSize: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderWidth: 2,
+    borderColor: "gray",
+    borderRadius: 10,
+    color: "black",
+    paddingRight: 30, // to ensure the text is never behind the icon
+    marginBottom: 20,
+  },
+  inputAndroid: {
+    flex:0.8,
+    fontSize: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 5,
+    borderColor: "black",
+    borderRadius: 10,
+    color: "black",
+    paddingRight: 30, // to ensure the text is never behind the icon
+    marginBottom: 20,
   },
 });
 
