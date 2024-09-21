@@ -6,7 +6,7 @@ export const saveUserData = async (userId) => {
     // Lấy dữ liệu người dùng từ database
     const { data: user, error } = await supabase
       .from("User")
-      .select("name, avatar")
+      .select("uid, name, avatar")
       .eq("uid", userId)
       .single();
 
@@ -19,7 +19,8 @@ export const saveUserData = async (userId) => {
       ? user.avatar
       : "https://via.placeholder.com/150";
 
-    // Lưu tên và URL của avatar vào bộ nhớ cục bộ
+    // Lưu uid, tên và URL của avatar vào bộ nhớ cục bộ
+    await AsyncStorage.setItem("userId", user.uid);
     await AsyncStorage.setItem("userName", user.name);
     await AsyncStorage.setItem("userAvatar", avatarUrl);
 

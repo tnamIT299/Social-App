@@ -7,11 +7,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
-  Button,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons";
@@ -22,11 +21,13 @@ import {
 } from "@react-navigation/native";
 import { supabase } from "../../data/supabaseClient";
 import { sendComment } from "../../server/CommentService";
-import { getUserName, getUserAvatar } from "../../data/getUserData";
+import { getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
+import Swiper from "react-native-swiper";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
 
+const { width: screenWidth } = Dimensions.get("window");
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
@@ -34,10 +35,7 @@ const PostDetailScreen = () => {
   const [post, setPost] = useState(null);
   const [posts, setPosts] = useState([]);
   const [comments, setComments] = useState([]);
-  const [userId, setUserId] = useState(null);
   const [newComment, setNewComment] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [likedPosts, setLikedPosts] = useState({});
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
@@ -48,14 +46,14 @@ const PostDetailScreen = () => {
   const fetchPostDetails = async () => {
     if (!postId) return;
 
-    setLoading(true);
     try {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) throw error;
+      // Lấy thông tin người dùng hiện tại
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+      if (userError) throw userError;
 
-      const { user } = data;
+      const user = userData.user;
       if (user) {
-        setUserId(user.id);
         // Fetch post details along with user data
         const { data: postData, error: postError } = await supabase
           .from("Post")
@@ -79,15 +77,31 @@ const PostDetailScreen = () => {
           throw commentsError;
         }
 
-        // Sort comments by timestamp in ascending order
+        // Fetch liked status
+        const { data: likeData, error: likeError } = await supabase
+          .from("Like")
+          .select("status")
+          .eq("post_id", postId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (likeError) throw likeError;
+
+        // Check if likeData is null or undefined
+        const likedByUser = likeData ? likeData.status : false; // Default to false if no like data
+
+        // Sort comments by timestamp in descending order
         const sortedComments = commentsData.sort(
           (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
         );
 
-        setPost(postData);
+        setPost({
+          ...postData,
+          likedByUser, // Include likedByUser status
+        });
         setComments(sortedComments);
 
-        //Lấy dữ liệu người dùng
+        // Lấy dữ liệu người dùng
         const name = await getUserName();
         const avatar = await getUserAvatar();
         setUserName(name);
@@ -95,51 +109,38 @@ const PostDetailScreen = () => {
       }
     } catch (error) {
       console.error("Error fetching post details:", error);
-      setError(error.message);
     } finally {
-      setLoading(false);
     }
   };
 
-  const handleLike = async (postId, isLiked) => {
+  const handleLike = async (postId, isLiked, likeCount) => {
     try {
-      // Update the UI first
-      const currentLikeCount = post.plike;
-      const updatedLikeCount = isLiked
-        ? currentLikeCount - 1
-        : currentLikeCount + 1;
-      setPost((prevPost) => ({
-        ...prevPost,
-        plike: updatedLikeCount,
-      }));
+      // Update like status and count in local state
+      const updatedLikeCount = isLiked ? likeCount - 1 : likeCount + 1;
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post.pid === postId ? { ...post, plike: updatedLikeCount } : post
+        )
+      );
 
-      // Update the liked status
+      // Update liked status
       setLikedPosts((prevLikedPosts) => ({
         ...prevLikedPosts,
         [postId]: !isLiked,
       }));
 
-      // Update the like count in the database after UI update
+      // Cập nhật số lượt thích trong cơ sở dữ liệu
       await updateLikeCount(postId, !isLiked);
+
+      // Tải lại danh sách bài viết để đảm bảo giao diện được cập nhật
+      await fetchPostDetails();
     } catch (error) {
       console.error("Error handling like:", error.message);
-
-      // If there's an error, revert the like count on the UI
-      setPost((prevPost) => ({
-        ...prevPost,
-        plike: post.plike,
-      }));
-
-      setLikedPosts((prevLikedPosts) => ({
-        ...prevLikedPosts,
-        [postId]: isLiked,
-      }));
     }
   };
 
-  const updateLikeCount = async (postId, increment) => {
+  const updateLikeCount = async (postId, isLiked) => {
     try {
-      // Update the like count in the database
       const { data: post, error: postError } = await supabase
         .from("Post")
         .select("plike")
@@ -148,7 +149,7 @@ const PostDetailScreen = () => {
 
       if (postError) throw postError;
 
-      const newLikeCount = post.plike + (increment ? 1 : -1);
+      const newLikeCount = post.plike + (isLiked ? 1 : -1);
 
       const { error } = await supabase
         .from("Post")
@@ -156,12 +157,47 @@ const PostDetailScreen = () => {
         .eq("pid", postId);
 
       if (error) throw error;
+
+      // Lấy dữ liệu id người dùng
+      const userId = await getUserId();
+
+      // Cập nhật trạng thái thích trong bảng Like
+      const { data: existingLike, error: likeError } = await supabase
+        .from("Like")
+        .select("status")
+        .eq("post_id", postId)
+        .eq("user_id", userId)
+        .single();
+
+      if (likeError && likeError.code !== "PGRST116") throw likeError; // Ignore "not found" error
+
+      // Nếu đã có dữ liệu trong bảng Like, cập nhật trạng thái; nếu không, tạo mới
+      if (existingLike) {
+        const { error: updateLikeError } = await supabase
+          .from("Like")
+          .update({ status: isLiked })
+          .eq("post_id", postId)
+          .eq("user_id", userId);
+
+        if (updateLikeError) throw updateLikeError;
+      } else {
+        const { error: insertLikeError } = await supabase.from("Like").insert({
+          post_id: postId,
+          user_id: userId,
+          status: isLiked,
+        });
+
+        if (insertLikeError) throw insertLikeError;
+      }
     } catch (error) {
       console.error("Error updating like count:", error.message);
     }
   };
 
   const handleSendComment = async () => {
+    // Lấy dữ liệu id người dùng
+    const userId = await getUserId();
+
     if (!userId) {
       Alert.alert("Error", "User ID is not available.");
       return;
@@ -246,23 +282,6 @@ const PostDetailScreen = () => {
     }, [postId])
   );
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>Loading post and comments...</Text>
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.errorContainer}>
-        <Text>Error fetching post and comments: {error}</Text>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -294,7 +313,9 @@ const PostDetailScreen = () => {
                   ) : (
                     <Image
                       source={{
-                        uri: "https://via.placeholder.com/150",
+                        uri:
+                          "https://via.placeholder.com/150" ||
+                          JSON.parse(post.pimage),
                       }}
                       style={styles.userAvatar}
                     />
@@ -318,10 +339,38 @@ const PostDetailScreen = () => {
                     <Text style={styles.postDesc}>{post.pdesc}</Text>
                   )}
                   {post.pimage && (
-                    <Image
-                      source={{ uri: post.pimage }}
-                      style={styles.postImage}
-                    />
+                    <ScrollView contentContainerStyle={styles.containerImage}>
+                      <View style={styles.gridContainer}>
+                        {post.pimage &&
+                        Array.isArray(JSON.parse(post.pimage)) ? (
+                          JSON.parse(post.pimage).length === 1 ? (
+                            <Image
+                              key={0}
+                              source={{ uri: JSON.parse(post.pimage)[0] }}
+                              style={styles.postImage}
+                            />
+                          ) : (
+                            <Swiper
+                              loop={true}
+                              autoplay={false}
+                              showsButtons={false}
+                              style={styles.wrapper}
+                            >
+                              {JSON.parse(post.pimage).map((item, index) => (
+                                <View key={index} style={styles.slide}>
+                                  <Image
+                                    source={{ uri: item }}
+                                    style={styles.image}
+                                  />
+                                </View>
+                              ))}
+                            </Swiper>
+                          )
+                        ) : (
+                          <Text>Không có hình ảnh nào</Text>
+                        )}
+                      </View>
+                    </ScrollView>
                   )}
                 </>
               ) : null}
@@ -332,13 +381,13 @@ const PostDetailScreen = () => {
                   <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() =>
-                      handleLike(post.pid, likedPosts[post.pid] || false)
+                      handleLike(post.pid, post.likedByUser, post.plike)
                     }
                   >
                     <Ionicons
-                      name={likedPosts[post.pid] ? "heart" : "heart-outline"}
-                      size={16}
-                      color={likedPosts[post.pid] ? "red" : "black"}
+                      name={post.likedByUser ? "heart" : "heart-outline"}
+                      size={18}
+                      color={post.likedByUser ? "red" : "black"}
                     />
                     <Text style={styles.actionText}>Like</Text>
                   </TouchableOpacity>
@@ -630,6 +679,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
     borderRadius: 10,
     padding: 10,
+  },
+  containerImage: {
+    flexGrow: 1,
+    padding: 10,
+  },
+  gridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  wrapper: {
+    height: 250,
+  },
+  slide: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  image: {
+    width: screenWidth,
+    height: 250,
+    resizeMode: "cover",
   },
 });
 

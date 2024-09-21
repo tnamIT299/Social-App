@@ -8,7 +8,7 @@ import {
   Image,
   TouchableOpacity,
 } from "react-native";
-import Icon from 'react-native-vector-icons/Ionicons';
+import Icon from "react-native-vector-icons/Ionicons";
 import { supabase } from "../../data/supabaseClient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -23,7 +23,7 @@ const FriendRequest = ({ avatar, name, onAccept, onDelete }) => (
           <Text style={styles.buttonText}>Xác nhận</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
-          <Text style={styles.buttonText}>Xóa</Text>
+          <Text style={styles.buttonText}>Từ chối</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -83,7 +83,7 @@ const FriendSuggestion = ({ avatar, name, onAddFriend, onRemove, onUndo }) => {
                 <Text style={styles.buttonText}>Thêm bạn bè</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
-                <Text style={styles.buttonText}>Gỡ</Text>
+                <Text style={styles.buttonText}>Ẩn</Text>
               </TouchableOpacity>
             </>
           )}
@@ -156,67 +156,75 @@ const FriendsScreen = () => {
   };
 
   const fetchSuggestions = async () => {
-    // Lấy dữ liệu phiên đăng nhập hiện tại
-    const { data: sessionData } = await supabase.auth.getSession();
-    const session = sessionData?.session;
+    try {
+      // Lấy dữ liệu người dùng hiện tại
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
 
-    if (!session || !session.user) {
-      console.error("Không có thông tin phiên đăng nhập.");
-      return;
-    }
+      const currentUserId = sessionData?.session?.user?.id;
+      if (!currentUserId) {
+        console.error("Người dùng hiện tại không tồn tại.");
+        return;
+      }
 
-    const currentUserId = session.user.id;
+      // Lấy danh sách bạn bè và các yêu cầu kết bạn (cả người gửi và người nhận)
+      const { data: friendships, error: friendshipsError } = await supabase
+        .from("Friendship")
+        .select("requester_id, receiver_id, status")
+        .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
 
-    // Lấy danh sách các mối quan hệ kết bạn đã được chấp nhận và lời mời kết bạn từ người dùng hiện tại
-    const { data: friendships, error: friendshipsError } = await supabase
-      .from("Friendship")
-      .select("requester_id, receiver_id, status")
-      .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+      if (friendshipsError) throw friendshipsError;
 
-    if (friendshipsError) {
-      console.error("Lỗi khi lấy dữ liệu bạn bè:", friendshipsError);
-      return;
-    }
+      // Tạo danh sách các ID cần loại trừ (bạn bè và các yêu cầu kết bạn đã gửi)
+      let excludedIds = friendships
+        .filter((friend) => friend.status !== "rejected") // Loại trừ các yêu cầu đã bị từ chối
+        .map((friend) =>
+          friend.requester_id === currentUserId
+            ? friend.receiver_id
+            : friend.requester_id
+        );
 
-    // Lấy danh sách ID của những người đã là bạn hoặc đã gửi/nhận lời mời kết bạn
-    const friendIds = friendships
-      .filter((f) => f.status === "accepted")
-      .map((f) => [f.requester_id, f.receiver_id])
-      .flat()
-      .filter((id) => id !== currentUserId);
+      // Lấy danh sách những người đã gửi lời mời kết bạn đến người dùng hiện tại
+      const { data: pendingRequests, error: pendingRequestsError } =
+        await supabase
+          .from("Friendship")
+          .select("requester_id")
+          .eq("receiver_id", currentUserId)
+          .eq("status", "pending");
 
-    const pendingRequestsIds = friendships
-      .filter((f) => f.status === "pending")
-      .map((f) => [f.requester_id, f.receiver_id])
-      .flat()
-      .filter((id) => id !== currentUserId);
+      if (pendingRequestsError) throw pendingRequestsError;
 
-    // Tạo danh sách ID cần loại bỏ
-    const idsToExclude = [...new Set([...friendIds, ...pendingRequestsIds])];
+      // Thêm ID của những người đã gửi lời mời kết bạn đến người dùng vào danh sách loại trừ
+      const pendingRequestIds = pendingRequests.map(
+        (request) => request.requester_id
+      );
+      excludedIds = excludedIds.concat(pendingRequestIds);
 
-    // Truy vấn để lấy gợi ý kết bạn
-    let query = supabase
-      .from("User")
-      .select("uid, name, avatar")
-      .neq("uid", currentUserId) // Loại bỏ người dùng hiện tại khỏi gợi ý
-      .limit(10);
+      // Thêm ID của người dùng hiện tại vào danh sách loại trừ
+      excludedIds.push(currentUserId);
 
-    // Loại bỏ những người đã là bạn hoặc đã gửi/nhận lời mời kết bạn
-    if (idsToExclude.length > 0) {
-      query = query.not("uid", "in", idsToExclude);
-    }
+      // Truy vấn gợi ý kết bạn, loại bỏ những người đã là bạn bè hoặc đã gửi yêu cầu kết bạn
+      const { data: suggestions, error: suggestionsError } = await supabase
+        .from("User")
+        .select("*")
+        .not("uid", "in", `(${excludedIds.join(",")})`);
 
-    const { data, error } = await query;
+      if (suggestionsError) throw suggestionsError;
 
-    if (error) {
-      console.error("Lỗi khi lấy dữ liệu gợi ý kết bạn:", error);
-    } else {
+      console.log("Gợi ý kết bạn:", suggestions);
+      // Cập nhật danh sách gợi ý lên UI
       setSuggestions(
-        data.map((user) => ({
+        suggestions.map((user) => ({
           id: user.uid,
-          avatar: user.avatar || "https://via.placeholder.com/150",
+          avatar: user.avatar || "https://via.placeholder.com/150", // Avatar mặc định nếu không có
           name: user.name,
         }))
+      );
+    } catch (error) {
+      console.error(
+        "Lỗi khi lấy dữ liệu gợi ý kết bạn:",
+        error.message || error
       );
     }
   };
@@ -305,109 +313,93 @@ const FriendsScreen = () => {
   };
 
   const handleSendFriendRequest = async (receiverId) => {
-    // Lấy dữ liệu phiên đăng nhập hiện tại
-    const { data: sessionData } = await supabase.auth.getSession();
-    const currentUserId = sessionData?.session?.user?.id;
+    try {
+      // Lấy dữ liệu phiên đăng nhập hiện tại
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
 
-    if (!currentUserId) {
-      console.error("Người dùng hiện tại không tồn tại.");
-      return;
-    }
+      const currentUserId = sessionData?.session?.user?.id;
+      if (!currentUserId) {
+        console.error("Người dùng hiện tại không tồn tại.");
+        return;
+      }
 
-    // Kiểm tra xem người dùng đã gửi lời mời kết bạn tới người nhận chưa
-    const { data: existingRequests, error: existingRequestsError } =
-      await supabase
+      // Kiểm tra xem người dùng đã gửi lời mời kết bạn tới người nhận chưa
+      const { data: existingRequests, error: existingRequestsError } =
+        await supabase
+          .from("Friendship")
+          .select("*")
+          .eq("requester_id", currentUserId)
+          .eq("receiver_id", receiverId)
+          .eq("status", "pending");
+
+      if (existingRequestsError) throw existingRequestsError;
+
+      if (existingRequests.length > 0) {
+        console.log("Lời mời kết bạn đã được gửi đến người nhận.");
+        return;
+      }
+
+      // Kiểm tra xem người dùng đã là bạn với người nhận chưa
+      const { data: friendshipsByUser, error: friendshipsByUserError } =
+        await supabase
+          .from("Friendship")
+          .select("*")
+          .or(
+            `requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`
+          )
+          .or(`requester_id.eq.${receiverId},receiver_id.eq.${receiverId}`);
+
+      if (friendshipsByUserError) throw friendshipsByUserError;
+
+      if (friendshipsByUser.length > 0) {
+        console.log(
+          "Người dùng đã là bạn hoặc đã gửi lời mời kết bạn đến người nhận."
+        );
+        return;
+      }
+
+      // Kiểm tra và xóa lời mời kết bạn nếu đã có ở phía người nhận
+      const {
+        data: existingReceivedRequests,
+        error: existingReceivedRequestsError,
+      } = await supabase
         .from("Friendship")
         .select("*")
-        .eq("requester_id", currentUserId)
-        .eq("receiver_id", receiverId)
-        .eq("status", "pending");
-
-    if (existingRequestsError) {
-      console.error(
-        "Lỗi khi kiểm tra yêu cầu kết bạn hiện tại:",
-        existingRequestsError
-      );
-      return;
-    }
-
-    if (existingRequests.length > 0) {
-      console.log("Lời mời kết bạn đã được gửi đến người nhận.");
-      return;
-    }
-
-    // Kiểm tra xem người dùng đã là bạn với người nhận chưa
-    const { data: friendshipsByUser, error: friendshipsByUserError } =
-      await supabase
-        .from("Friendship")
-        .select("*")
-        .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
-        .or(`requester_id.eq.${receiverId},receiver_id.eq.${receiverId}`);
-
-    if (friendshipsByUserError) {
-      console.error(
-        "Lỗi khi kiểm tra tình trạng kết bạn hiện tại:",
-        friendshipsByUserError
-      );
-      return;
-    }
-
-    if (friendshipsByUser.length > 0) {
-      console.log(
-        "Người dùng đã là bạn hoặc đã gửi lời mời kết bạn đến người nhận."
-      );
-      return;
-    }
-
-    // Kiểm tra và xóa lời mời kết bạn nếu đã có ở phía người nhận
-    const {
-      data: existingReceivedRequests,
-      error: existingReceivedRequestsError,
-    } = await supabase
-      .from("Friendship")
-      .select("*")
-      .eq("requester_id", receiverId)
-      .eq("receiver_id", currentUserId)
-      .eq("status", "pending");
-
-    if (existingReceivedRequestsError) {
-      console.error(
-        "Lỗi khi kiểm tra yêu cầu kết bạn của người nhận:",
-        existingReceivedRequestsError
-      );
-      return;
-    }
-
-    if (existingReceivedRequests.length > 0) {
-      const { error: deleteRequestError } = await supabase
-        .from("Friendship")
-        .delete()
         .eq("requester_id", receiverId)
         .eq("receiver_id", currentUserId)
         .eq("status", "pending");
 
-      if (deleteRequestError) {
-        console.error(
-          "Lỗi khi xóa lời mời kết bạn của người nhận:",
-          deleteRequestError
-        );
-        return;
+      if (existingReceivedRequestsError) throw existingReceivedRequestsError;
+
+      if (existingReceivedRequests.length > 0) {
+        const { error: deleteRequestError } = await supabase
+          .from("Friendship")
+          .delete()
+          .eq("requester_id", receiverId)
+          .eq("receiver_id", currentUserId)
+          .eq("status", "pending");
+
+        if (deleteRequestError) throw deleteRequestError;
       }
-    }
 
-    // Gửi lời mời kết bạn
-    const { error: insertError } = await supabase.from("Friendship").insert({
-      requester_id: currentUserId,
-      receiver_id: receiverId,
-      status: "pending",
-    });
+      // Gửi lời mời kết bạn
+      const { error: insertError } = await supabase.from("Friendship").insert({
+        requester_id: currentUserId,
+        receiver_id: receiverId,
+        status: "pending",
+      });
 
-    if (insertError) {
-      console.error("Lỗi khi gửi lời mời kết bạn:", insertError);
-    } else {
+      if (insertError) throw insertError;
+
       console.log("Lời mời kết bạn đã được gửi thành công.");
+
+      // Cập nhật danh sách gợi ý kết bạn và lời mời kết bạn
       fetchSuggestions();
       fetchSentInvitations();
+    } catch (error) {
+      console.error("Đã xảy ra lỗi:", error.message || error);
     }
   };
 
@@ -550,44 +542,48 @@ const FriendsScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerText}>Bạn bè</Text>
-        <Icon name="search-outline" size={30} color="black" style={styles.icon}/>
+        <Icon
+          name="search-outline"
+          size={30}
+          color="black"
+          style={styles.icon}
+        />
       </View>
 
-      <ScrollView 
+      <ScrollView
         horizontal={true}
         style={styles.buttonContainer}
         showsHorizontalScrollIndicator={false} // Hides the scroll indicator for a cleaner look
       >
-        <View style={{flexDirection:'row', maxHeight:40}}>
-        <TouchableOpacity
-        style={styles.buttonStyle}
-          onPress={() => setActiveSection("friendList")}
-        >
-          <Text style={styles.buttonText}>Danh sách bạn bè</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", maxHeight: 40 }}>
+          <TouchableOpacity
+            style={styles.buttonStyle}
+            onPress={() => setActiveSection("friendList")}
+          >
+            <Text style={styles.buttonText}>Danh sách bạn bè</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-        style={styles.buttonStyle}
-          onPress={() => setActiveSection("requests")}
-        >
-          <Text style={styles.buttonText}>Lời mời kết bạn</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.buttonStyle}
+            onPress={() => setActiveSection("requests")}
+          >
+            <Text style={styles.buttonText}>Lời mời kết bạn</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-        style={styles.buttonStyle}
-          onPress={() => setActiveSection("suggestions")}
-        >
-          <Text style={styles.buttonText}>Gợi ý</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.buttonStyle}
+            onPress={() => setActiveSection("suggestions")}
+          >
+            <Text style={styles.buttonText}>Gợi ý</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-        style={styles.buttonStyle}
-          onPress={() => setActiveSection("sentInvitations")}
-        >
-          <Text style={styles.buttonText}>Yêu cầu đã gửi</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.buttonStyle}
+            onPress={() => setActiveSection("sentInvitations")}
+          >
+            <Text style={styles.buttonText}>Yêu cầu đã gửi</Text>
+          </TouchableOpacity>
         </View>
-        
       </ScrollView>
 
       <ScrollView style={styles.scrollContainer}>
@@ -658,7 +654,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     paddingVertical: 10,
     paddingHorizontal: 5,
-    maxHeight:60
+    maxHeight: 60,
   },
   buttonStyle: {
     backgroundColor: "#00BFFF",
@@ -667,7 +663,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: 10,
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 5,
     shadowColor: "#000", // Add shadow for better visual effect
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

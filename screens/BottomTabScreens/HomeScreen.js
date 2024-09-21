@@ -9,15 +9,20 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons";
+import { getUserId } from "../../data/getUserData";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../data/supabaseClient";
+import Swiper from "react-native-swiper";
+import PostOptions from "../PostScreens/PostOptions";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
 
+const { width: screenWidth } = Dimensions.get("window");
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
@@ -26,9 +31,9 @@ const HomeScreen = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userId, setUserId] = useState("");
   const [likedPosts, setLikedPosts] = useState({});
   const navigation = useNavigation();
-
   const [avatarUrl, setAvatarUrl] = useState(null);
 
   useEffect(() => {
@@ -46,9 +51,9 @@ const HomeScreen = () => {
 
       if (user) {
         const { data, error } = await supabase
-          .from('User')
-          .select('avatar')
-          .eq('uid', user.id)
+          .from("User")
+          .select("avatar")
+          .eq("uid", user.id)
           .single();
 
         if (error) {
@@ -67,16 +72,20 @@ const HomeScreen = () => {
   };
 
   const handlePostDetailScreen = (postId) => {
-    navigation.navigate("PostDetailScreen", { postId }); // Navigate to CreatePost screen
+    navigation.navigate("PostDetailScreen", { postId });
   };
 
   const fetchPosts = async () => {
     try {
       const { data: postsData, error: postsError } = await supabase
         .from("Post")
-        .select("*");
+        .select("*")
+        .eq("permission", "cộng đồng");
 
       if (postsError) throw postsError;
+
+      const Id = await getUserId();
+      setUserId(Id);
 
       const updatedPosts = await Promise.all(
         postsData.map(async (post) => {
@@ -88,7 +97,24 @@ const HomeScreen = () => {
 
           if (userError) throw userError;
 
-          return { ...post, user: userData };
+          // Fetch liked status
+          const { data: likeData, error: likeError } = await supabase
+            .from("Like")
+            .select("status")
+            .eq("post_id", post.pid)
+            .eq("user_id", Id)
+            .maybeSingle();
+
+          if (likeError) throw likeError;
+
+          // Check if likeData is null or undefined
+          const likedByUser = likeData ? likeData.status : false; // Default to false if no like data
+
+          return {
+            ...post,
+            user: userData,
+            likedByUser, // Include likedByUser status
+          };
         })
       );
 
@@ -100,6 +126,7 @@ const HomeScreen = () => {
       setPosts(sortedPosts);
     } catch (error) {
       setError(error.message);
+      console.log("Error fetching posts:", error.message);
     } finally {
       setLoading(false);
     }
@@ -121,7 +148,7 @@ const HomeScreen = () => {
       const updatedLikeCount = isLiked ? likeCount - 1 : likeCount + 1;
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
-          post.pid === postId ? { ...post, pLike: updatedLikeCount } : post
+          post.pid === postId ? { ...post, plike: updatedLikeCount } : post
         )
       );
 
@@ -141,9 +168,8 @@ const HomeScreen = () => {
     }
   };
 
-  const updateLikeCount = async (postId, increment) => {
+  const updateLikeCount = async (postId, isLiked) => {
     try {
-      // Nếu bạn sử dụng giá trị cũ và muốn thực hiện phép toán trên server, bạn cần một stored procedure hoặc tương tự.
       const { data: post, error: postError } = await supabase
         .from("Post")
         .select("plike")
@@ -152,7 +178,7 @@ const HomeScreen = () => {
 
       if (postError) throw postError;
 
-      const newLikeCount = post.plike + (increment ? 1 : -1);
+      const newLikeCount = post.plike + (isLiked ? 1 : -1);
 
       const { error } = await supabase
         .from("Post")
@@ -160,8 +186,101 @@ const HomeScreen = () => {
         .eq("pid", postId);
 
       if (error) throw error;
+
+      // Cập nhật trạng thái thích trong bảng Like
+      const { data: existingLike, error: likeError } = await supabase
+        .from("Like")
+        .select("status")
+        .eq("post_id", postId)
+        .eq("user_id", userId)
+        .single();
+
+      if (likeError && likeError.code !== "PGRST116") throw likeError; // Ignore "not found" error
+
+      // Nếu đã có dữ liệu trong bảng Like, cập nhật trạng thái; nếu không, tạo mới
+      if (existingLike) {
+        const { error: updateLikeError } = await supabase
+          .from("Like")
+          .update({ status: isLiked })
+          .eq("post_id", postId)
+          .eq("user_id", userId);
+
+        if (updateLikeError) throw updateLikeError;
+      } else {
+        const { error: insertLikeError } = await supabase.from("Like").insert({
+          post_id: postId,
+          user_id: userId,
+          status: isLiked,
+        });
+
+        if (insertLikeError) throw insertLikeError;
+      }
     } catch (error) {
       console.error("Error updating like count:", error.message);
+    }
+  };
+
+  const isPostOwner = (postId, userId) => {
+    return posts.find((post) => post.pid === postId)?.uid === userId;
+  };
+
+  // Các chức năng của bài đăng
+  const handleEditPost = (postId, initialPostText, initialImageUris) => {
+    // Điều hướng sang màn hình chỉnh sửa bài viết thông qua EditPostStack
+    navigation.navigate("EditPost", {
+      screen: "EditPostTab", // Chỉ định màn hình bên trong stack
+      params: {
+        postId,
+        initialPostText,
+        initialImageUris,
+      },
+    });
+  };
+
+  const handleDeletePost = async (postId) => {
+    console.log("Xóa bài viết:", postId);
+    try {
+      // Xóa bài viết từ bảng "Post"
+      const { error: postError } = await supabase
+        .from("Post")
+        .delete()
+        .eq("pid", postId);
+
+      if (postError) throw postError;
+
+      // Do ON DELETE CASCADE đã được thiết lập, dữ liệu liên quan "Like" sẽ tự độn trong bảng "Comment" vàg bị xóa.
+
+      // Cập nhật lại danh sách bài đăng sau khi xóa
+      await fetchPosts();
+      console.log("Xóa bài viết và các dữ liệu liên quan thành công");
+    } catch (error) {
+      console.error(
+        "Lỗi khi xóa bài viết và dữ liệu liên quan:",
+        error.message
+      );
+    }
+  };
+
+  const handleSavePost = (postId) => {
+    console.log("Lưu bài viết:", postId);
+    // Xử lý lưu bài viết
+  };
+
+  const handleHidePost = (postId) => {
+    console.log("Ẩn bài viết:", postId);
+    // Xử lý ẩn bài viết
+  };
+
+  const handleChangePrivacy = async (postId, newPrivacy) => {
+    const { error } = await supabase
+      .from("Post")
+      .update({ permission: newPrivacy })
+      .eq("pid", postId);
+
+    if (error) {
+      Alert.alert("Lỗi", "Không thể thay đổi quyền riêng tư");
+    } else {
+      Alert.alert("Thành công", "Quyền riêng tư đã được cập nhật");
     }
   };
 
@@ -235,14 +354,13 @@ const HomeScreen = () => {
 
       {/* Post input */}
       <View style={styles.postInputContainer}>
-      <Image
-        source={{
-          uri: avatarUrl || "https://via.placeholder.com/150",
-        }}
-        style={styles.avatar}
-      />
-        <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?"
-        onPress={handleCreatePost} />
+        <Image
+          source={{
+            uri: avatarUrl || "https://via.placeholder.com/150",
+          }}
+          style={styles.avatar}
+        />
+        <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
       </View>
 
       {/* Post cards with horizontal ScrollView */}
@@ -281,113 +399,159 @@ const HomeScreen = () => {
           </View>
         ) : (
           <View style={styles.cardContainer}>
-            {posts.map((post) => (
-              <View key={post.pid} style={styles.card}>
-                <TouchableOpacity
-                  key={post.pid}
-                  onPress={() => handlePostDetailScreen(post.pid)}
-                >
-                  <View style={styles.userInfo}>
-                    <View style={styles.user}>
-                      {post.user?.avatar ? (
-                        <Image
-                          source={{
-                            uri: post.user.avatar,
-                          }}
-                          style={styles.userAvatar}
+            {posts.map((post) => {
+              const isOwner = isPostOwner(post.pid, userId);
+              return (
+                <View key={post.pid} style={styles.card}>
+                  <TouchableOpacity
+                    key={post.pid}
+                    onPress={() => handlePostDetailScreen(post.pid)}
+                  >
+                    <View style={styles.userInfo}>
+                      <View style={styles.user}>
+                        {post.user?.avatar ? (
+                          <Image
+                            source={{
+                              uri: post.user.avatar,
+                            }}
+                            style={styles.userAvatar}
+                          />
+                        ) : (
+                          <Image
+                            source={{
+                              uri: "https://via.placeholder.com/150",
+                            }}
+                            style={styles.userAvatar}
+                          />
+                        )}
+                        <Text style={{ flex: 1 }}>{post.user?.name}</Text>
+                        <PostOptions
+                          style={{ flex: 0.1 }}
+                          postId={post.pid}
+                          isOwner={isOwner} // Kiểm tra xem người dùng hiện tại có phải là chủ bài viết
+                          onEdit={() =>
+                            handleEditPost(
+                              post.pid,
+                              post.pdesc,
+                              JSON.parse(post.pimage)
+                            )
+                          } // Hàm sửa bài viết
+                          onDelete={() => handleDeletePost(post.pid)} // Hàm xóa bài viết
+                          onSave={() => handleSavePost(post.pid)} // Hàm lưu bài viết
+                          onHide={() => handleHidePost(post.pid)} // Hàm ẩn bài viết
+                          onPrivacyChange={(permission) =>
+                            handleChangePrivacy(post.pid, permission)
+                          } // Hàm thay đổi quyền riêng tư
                         />
-                      ) : (
-                        <Image
-                          source={{
-                            uri: "https://via.placeholder.com/150",
-                          }}
-                          style={styles.userAvatar}
+                      </View>
+                    </View>
+                    <View style={styles.posttimeView}>
+                      <Text style={styles.posttimeText}>
+                        {dayjs(post.createdat).fromNow()}
+                      </Text>
+                    </View>
+                    {post.pdesc || post.pimage ? (
+                      <>
+                        {post.pdesc && (
+                          <Text style={styles.cardDesc}>{post.pdesc}</Text>
+                        )}
+                        {post.pimage && (
+                          <ScrollView
+                            contentContainerStyle={styles.containerImage}
+                          >
+                            <View style={styles.gridContainer}>
+                              {post.pimage &&
+                              Array.isArray(JSON.parse(post.pimage)) ? (
+                                JSON.parse(post.pimage).length === 1 ? (
+                                  <Image
+                                    key={0}
+                                    source={{ uri: JSON.parse(post.pimage)[0] }}
+                                    style={styles.cardImage}
+                                  />
+                                ) : (
+                                  <Swiper
+                                    loop={true}
+                                    autoplay={false}
+                                    showsButtons={true}
+                                    style={styles.wrapper}
+                                  >
+                                    {JSON.parse(post.pimage).map(
+                                      (item, index) => (
+                                        <View key={index} style={styles.slide}>
+                                          <Image
+                                            source={{ uri: item }}
+                                            style={styles.image}
+                                          />
+                                        </View>
+                                      )
+                                    )}
+                                  </Swiper>
+                                )
+                              ) : (
+                                <Text>Không có hình ảnh nào</Text>
+                              )}
+                            </View>
+                          </ScrollView>
+                        )}
+                      </>
+                    ) : null}
+                  </TouchableOpacity>
+                  <View style={styles.cardStats}>
+                    {/* Likes, Comments, and Shares Counters */}
+                    <View style={styles.statRow}>
+                      <Text style={styles.statText}>
+                        {post.plike} lượt thích
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() =>
+                          handleLike(post.pid, post.likedByUser, post.plike)
+                        }
+                      >
+                        <Ionicons
+                          name={post.likedByUser ? "heart" : "heart-outline"}
+                          size={18}
+                          color={post.likedByUser ? "red" : "black"}
                         />
-                      )}
-                      <Text style={{ flex: 1 }}>{post.user?.name}</Text>
-                      <FontAwesome6
-                        style={{ flex: 0.1 }}
-                        name="ellipsis"
-                        size={20}
-                      ></FontAwesome6>
+                        <Text style={styles.actionText}>Like</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.statRow}>
+                      <Text style={styles.statText}>
+                        {post.pcomment} bình luận
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        //onPress={handleComment}
+                      >
+                        <Ionicons
+                          name="chatbubble-outline"
+                          size={16}
+                          color="black"
+                        />
+                        <Text style={styles.actionText}>Comment</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.statRow}>
+                      <Text style={styles.statText}>{post.pshare} chia sẻ</Text>
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        //onPress={handleShare}
+                      >
+                        <Ionicons
+                          name="share-social-outline"
+                          size={16}
+                          color="black"
+                        />
+                        <Text style={styles.actionText}>Share</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
-                  <View style={styles.posttimeView}>
-                    <Text style={styles.posttimeText}>
-                      {dayjs(post.createdat).fromNow()}
-                    </Text>
-                  </View>
-                  {post.pdesc || post.pimage ? (
-                    <>
-                      {post.pdesc && (
-                        <Text style={styles.cardDesc}>{post.pdesc}</Text>
-                      )}
-                      {post.pimage && (
-                        <Image
-                          source={{ uri: post.pimage }}
-                          style={styles.cardImage}
-                        />
-                      )}
-                    </>
-                  ) : null}
-                </TouchableOpacity>
-                <View style={styles.cardStats}>
-                  {/* Likes, Comments, and Shares Counters */}
-                  <View style={styles.statRow}>
-                    <Text style={styles.statText}>{post.plike} lượt thích</Text>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() =>
-                        handleLike(
-                          post.pid,
-                          likedPosts[post.pid] || false,
-                          post.pLike
-                        )
-                      }
-                    >
-                      <Ionicons
-                        name={likedPosts[post.pid] ? "heart" : "heart-outline"}
-                        size={16}
-                        color={likedPosts[post.pid] ? "red" : "black"}
-                      />
-                      <Text style={styles.actionText}>Like</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.statRow}>
-                    <Text style={styles.statText}>
-                      {post.pcomment} bình luận
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      //onPress={handleComment}
-                    >
-                      <Ionicons
-                        name="chatbubble-outline"
-                        size={16}
-                        color="black"
-                      />
-                      <Text style={styles.actionText}>Comment</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.statRow}>
-                    <Text style={styles.statText}>{post.pshare} chia sẻ</Text>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      //onPress={handleShare}
-                    >
-                      <Ionicons
-                        name="share-social-outline"
-                        size={16}
-                        color="black"
-                      />
-                      <Text style={styles.actionText}>Share</Text>
-                    </TouchableOpacity>
-                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -589,6 +753,28 @@ const styles = StyleSheet.create({
   },
   storyCardText: {
     marginTop: 5,
+  },
+  containerImage: {
+    flexGrow: 1,
+    padding: 10,
+  },
+  gridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  wrapper: {
+    height: 250,
+  },
+  slide: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  image: {
+    width: screenWidth,
+    height: 250,
+    resizeMode: "cover",
   },
 });
 

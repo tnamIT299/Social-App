@@ -8,20 +8,22 @@ import {
   StyleSheet,
   Alert,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import * as ImagePicker from "expo-image-picker";
-import { createPost } from "../../server/PostService";
+import { editPost } from "../../server/PostService"; // Đổi thành editPost
 import { supabase } from "../../data/supabaseClient";
 import Icon from "react-native-vector-icons/FontAwesome";
 
 const Stack = createStackNavigator();
 
-const CreatePostTab = () => {
+const EditPostTab = () => {
+  const route = useRoute();
   const navigation = useNavigation();
-  const [postText, setPostText] = useState("");
-  const [selectedImages, setSelectedImages] = useState([]); // Chuyển từ 1 ảnh sang mảng ảnh
-  const [userId, setUserId] = useState(null); // Lưu trữ user ID
+  const { postId, initialPostText, initialImageUris } = route.params; // Lấy mảng ảnh ban đầu (nếu có)
+  const [postText, setPostText] = useState(initialPostText || ""); // Khởi tạo văn bản bài đăng ban đầu
+  const [selectedImages, setSelectedImages] = useState(initialImageUris || []); // Khởi tạo mảng ảnh từ thông tin ban đầu hoặc rỗng nếu không có
+  const [userId, setUserId] = useState(null);
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
 
@@ -35,9 +37,8 @@ const CreatePostTab = () => {
         if (user) {
           setUserId(user.id);
 
-          // Fetch user details
           const { data: userDetails, error: userError } = await supabase
-            .from("User") // Adjust table name if different
+            .from("User")
             .select("name, avatar")
             .eq("uid", user.id)
             .single();
@@ -45,8 +46,8 @@ const CreatePostTab = () => {
           if (userError) throw userError;
 
           if (userDetails) {
-            setUserName(userDetails.name || ""); // Ensure it's a string
-            setUserAvatar(userDetails.avatar || ""); // Ensure it's a string
+            setUserName(userDetails.name || "");
+            setUserAvatar(userDetails.avatar || "");
           }
         } else {
           Alert.alert("Error", "User not found.");
@@ -125,43 +126,42 @@ const CreatePostTab = () => {
     setSelectedImages([]); // Làm trống danh sách ảnh
   };
 
-  const handlePost = async () => {
+  const handleEditPost = async () => {
     if (!userId) {
       Alert.alert("Error", "User ID is not available.");
       return;
     }
 
     const postDetails = {
-      title: postText,
+      id: postId,
       desc: postText,
-      imageUris: selectedImages, // Gửi mảng URI ảnh đã chọn
-      userId: userId, // Sử dụng userId
+      imageUris: selectedImages, // Gửi mảng ảnh
+      userId: userId,
     };
 
     try {
-      const success = await createPost(postDetails);
+      const success = await editPost(postDetails);
 
       if (success) {
-        Alert.alert("Success", "Post created successfully!");
+        Alert.alert("Success", "Post updated successfully!");
         navigation.goBack();
       } else {
-        Alert.alert("Error", "Error creating post.");
+        Alert.alert("Error", "Error updating post.");
       }
     } catch (error) {
       Alert.alert(
         "Error",
-        `Unexpected error when creating post: ${error.message}`
+        "Unexpected error when updating post: ${error.message}"
       );
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* Hiển thị thông tin người dùng */}
       {userName ? (
         <View style={styles.userInfoContainer}>
           <Image
-            source={{ uri: userAvatar || "https://via.placeholder.com/150" }} // Hiển thị ảnh đại diện người dùng
+            source={{ uri: userAvatar || "https://via.placeholder.com/150" }}
             style={styles.avatar}
           />
           <Text style={styles.userName}>{userName}</Text>
@@ -170,13 +170,13 @@ const CreatePostTab = () => {
 
       <TextInput
         style={styles.postInput}
-        placeholder="What's on your mind?"
+        placeholder="Edit your post"
         value={postText}
         onChangeText={setPostText}
       />
 
       <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
-        <Text style={styles.imagePickerText}>Pick an Image</Text>
+        <Text style={styles.imagePickerText}>Change Image</Text>
       </TouchableOpacity>
 
       <View style={styles.imagePreviewContainer}>
@@ -218,21 +218,21 @@ const CreatePostTab = () => {
         )}
       </View>
 
-      <TouchableOpacity onPress={handlePost} style={styles.postButton}>
-        <Text style={styles.postButtonText}>Post</Text>
+      <TouchableOpacity onPress={handleEditPost} style={styles.postButton}>
+        <Text style={styles.postButtonText}>Update Post</Text>
       </TouchableOpacity>
     </View>
   );
 };
 
-const CreatePostStack = ({ navigation }) => {
+const EditPostStack = ({ navigation }) => {
   return (
     <Stack.Navigator>
       <Stack.Screen
-        name="CreatePostTab"
-        component={CreatePostTab}
+        name="EditPostTab"
+        component={EditPostTab}
         options={({ navigation }) => ({
-          headerTitle: "Create Post",
+          headerTitle: "Edit Post",
           headerTitleAlign: "center",
           headerStyle: { backgroundColor: "#2F95DC" },
           headerTintColor: "#FFFFFF",
@@ -252,24 +252,11 @@ const CreatePostStack = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  // Same styles as before
   container: {
     flex: 1,
     padding: 20,
     backgroundColor: "#fff",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  backButton: {
-    fontSize: 18,
-    color: "#007BFF",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
   },
   userInfoContainer: {
     flexDirection: "row",
@@ -364,4 +351,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CreatePostStack;
+export default EditPostStack;

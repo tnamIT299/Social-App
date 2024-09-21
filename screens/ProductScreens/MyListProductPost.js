@@ -25,7 +25,8 @@ const MyListProductPostTab = () => {
   const [loading, setLoading] = useState(true);
   const [textSearch, setTextSearch] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [selectedProductId, setSelectedProductId] = useState(null); // State to keep track of selected product ID
+  const [selectedProductId, setSelectedProductId] = useState(null);
+  const [selectedUId, setselectedUId] = useState(null); // State to keep track of selected product ID
 
   const fetchProducts = async () => {
     const {
@@ -33,6 +34,7 @@ const MyListProductPostTab = () => {
       error: userError,
     } = await supabase.auth.getUser();
 
+    const uid = user.id;
     if (userError) {
       console.log("Lỗi khi lấy thông tin người dùng:", userError);
       return;
@@ -48,6 +50,7 @@ const MyListProductPostTab = () => {
     } else {
       setProducts(data);
       setFilteredProducts(data);
+      setselectedUId(uid)
     }
 
     setLoading(false);
@@ -81,7 +84,7 @@ const MyListProductPostTab = () => {
 
   const handleDetailProductPost = () => {
     if (selectedProductId) {
-      navigation.navigate("DetailProductPost", { productId: selectedProductId });
+      navigation.navigate("DetailProductPost", { productId: selectedProductId, uid: selectedUId });
       toggleMenu(); // Close menu after navigating
     }
   };

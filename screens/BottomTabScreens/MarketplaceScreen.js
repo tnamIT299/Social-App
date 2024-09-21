@@ -20,8 +20,18 @@ const MarketplaceScreen = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [productCategory, setProductCategory] = useState("");
+  const [uid, setUid] = useState(null);
 
   const fetchProducts = async () => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.log("Lỗi khi lấy thông tin người dùng:", userError);
+      return;
+    }
+  
+    // Lấy uid từ thông tin người dùng
+    const uid = user.id;
     const { data, error } = await supabase
       .from("ProductPost") // tên bảng
       .select("productid, productname, productprice, productimage"); // các cột cần lấy
@@ -31,12 +41,24 @@ const MarketplaceScreen = () => {
     } else {
       console.log("Dữ liệu:", data);
       setProducts(data); // Cập nhật state products với dữ liệu lấy từ Supabase
+      setUid(uid);
     }
 
     setLoading(false); // Tắt loading khi có dữ liệu
   };
 
+  const handleDetailProductPost = (productId, uid) => {
+      navigation.navigate("DetailProductPost", { productId, uid });
+  };
+
   const fetchProductsType = async () => {
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    const uid = user.id;
+
     const { data, error } = await supabase
       .from("ProductPost") // tên bảng
       .select("productid, productname, productprice, productimage") // các cột cần lấy
@@ -70,9 +92,11 @@ const MarketplaceScreen = () => {
 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
+      <TouchableOpacity style={{alignItems:'center'}} onPress={() => handleDetailProductPost(item.productid, uid)}>
       <Image source={{ uri: item.productimage }} style={styles.image} />
       <Text style={styles.title}>{item.productname}</Text>
       <Text style={styles.price}>{item.productprice} VNĐ</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -148,6 +172,8 @@ const MarketplaceScreen = () => {
     </SafeAreaView>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -274,8 +300,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   image: {
-    width: 100,
-    height: 100,
+    width: 150,
+    height: 150,
+    borderRadius:10,
     resizeMode: "contain",
   },
   title: {

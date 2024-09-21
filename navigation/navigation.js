@@ -6,10 +6,9 @@ import Login from "../screens/Login";
 import SignUp from "../screens/SignUp";
 import ForgetPassword from "../screens/ForgetPassword";
 import TabNavigation from "./tabNavigation";
-import CreatePost from "../screens/PostScreens/CreatePost";
-import PostDetailScreen from "../screens/PostScreens/PostDetailScreen";
 import * as Linking from "expo-linking";
 import { FriendsScreen } from "../screens/BottomTabScreens";
+import {CreatePost, EditPost, PostDetailScreen} from "../screens/PostScreens";
 import { AddProductScreen, MyListProductPost,DetailProductPost } from "../screens/ProductScreens";
 const Stack = createStackNavigator();
 
@@ -27,6 +26,7 @@ function Navigation() {
         <Stack.Screen name="TabNavigation" component={TabNavigation} />
         <Stack.Screen name="CreatePost" component={CreatePost} />
         <Stack.Screen name="PostDetailScreen" component={PostDetailScreen} />
+        <Stack.Screen name="EditPost" component={EditPost} />
         <Stack.Screen name="FriendsScreen" component={FriendsScreen} />
 
 
