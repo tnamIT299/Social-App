@@ -170,13 +170,13 @@ const CreatePostTab = () => {
 
       <TextInput
         style={styles.postInput}
-        placeholder="What's on your mind?"
+        placeholder="Bạn đang nghĩ gì?"
         value={postText}
         onChangeText={setPostText}
       />
 
       <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
-        <Text style={styles.imagePickerText}>Pick an Image</Text>
+        <Text style={styles.imagePickerText}>Chọn ảnh</Text>
       </TouchableOpacity>
 
       <View style={styles.imagePreviewContainer}>
@@ -219,7 +219,7 @@ const CreatePostTab = () => {
       </View>
 
       <TouchableOpacity onPress={handlePost} style={styles.postButton}>
-        <Text style={styles.postButtonText}>Post</Text>
+        <Text style={styles.postButtonText}>Đăng</Text>
       </TouchableOpacity>
     </View>
   );
@@ -232,7 +232,7 @@ const CreatePostStack = ({ navigation }) => {
         name="CreatePostTab"
         component={CreatePostTab}
         options={({ navigation }) => ({
-          headerTitle: "Create Post",
+          headerTitle: "Tạo bài viết",
           headerTitleAlign: "center",
           headerStyle: { backgroundColor: "#2F95DC" },
           headerTintColor: "#FFFFFF",

@@ -3,56 +3,52 @@ import * as FileSystem from "expo-file-system";
 import { Alert } from 'react-native';
 
 export const createProductPost = async (productPostDetails) => {
-  const { title, price, desc,status, imageUri,category, userId } = productPostDetails;
+  const { title, price, desc,status, imageUris,category, userId } = productPostDetails;
 
   try {
-    let imageUrl = "";
-    if (imageUri) {
-      // Kiểm tra nếu file tồn tại trước khi tiếp tục
-      const fileInfo = await FileSystem.getInfoAsync(imageUri);
-      console.log("Thông tin file:", fileInfo);
-      if (!fileInfo.exists) throw new Error("File không tồn tại.");
+    let imageUrls = []; // Mảng để lưu URL của các ảnh
 
-      const fileName = `Post_Product_Image/${Date.now()}_${fileNameFromUri(imageUri)}`;
+    // Nếu có ảnh, xử lý tải từng ảnh lên Supabase
+    if (imageUris && imageUris.length > 0) {
+      for (const imageUri of imageUris) {
+        const fileInfo = await FileSystem.getInfoAsync(imageUri);
+        if (!fileInfo.exists) throw new Error("File không tồn tại.");
 
-      //console.log("Đang tải ảnh lên Supabase:", fileName);
+        const fileName = `Post_Product_Image/${Date.now()}_${fileNameFromUri(
+          imageUri
+        )}`;
 
-      // Tạo đối tượng FormData
-      const formData = new FormData();
-      formData.append("file", {
-        uri: imageUri,
-        name: fileName,
-        type: "image/jpeg",
-      });
+        const formData = new FormData();
+        formData.append("file", {
+          uri: imageUri,
+          name: fileName,
+          type: "image/jpeg",
+        });
+        // Tải ảnh lên Supabase Storage
+        const response = await fetch(
+          `https://uhhyfdvwcgkdhazvgamp.supabase.co/storage/v1/object/SocialApp/${fileName}`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoaHlmZHZ3Y2drZGhhenZnYW1wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjU1Mzg1NzcsImV4cCI6MjA0MTExNDU3N30.wIntuljwnbAe99So-08Rx8hTa3nHNo1eHE61dy6VZOc`,
+              "Content-Type": "multipart/form-data",
+            },
+            body: formData,
+          }
+        );
 
-      // Tải ảnh lên Supabase Storage
-      const response = await fetch(
-        `https://uhhyfdvwcgkdhazvgamp.supabase.co/storage/v1/object/SocialApp/${fileName}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoaHlmZHZ3Y2drZGhhenZnYW1wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjU1Mzg1NzcsImV4cCI6MjA0MTExNDU3N30.wIntuljwnbAe99So-08Rx8hTa3nHNo1eHE61dy6VZOc`,
-            "Content-Type": "multipart/form-data",
-          },
-          body: formData,
-        }
-      );
+        const result = await response.json();
+        if (!response.ok)
+          throw new Error(`Tải ảnh lên Supabase thất bại: ${result.message}`);
 
-      const result = await response.json();
+        const { data: urlData, error: urlError } = supabase.storage
+          .from("SocialApp")
+          .getPublicUrl(fileName);
+        if (urlError)
+          throw new Error(`Lấy URL công khai thất bại: ${urlError.message}`);
 
-      if (!response.ok)
-        throw new Error(`Tải ảnh lên Supabase thất bại: ${result.message}`);
-
-      // Lấy URL công khai của ảnh
-      const { data: urlData, error: urlError } = supabase.storage
-        .from("SocialApp")
-        .getPublicUrl(fileName);
-
-      if (urlError)
-        throw new Error(`Lấy URL công khai thất bại: ${urlError.message}`);
-
-      imageUrl = urlData.publicUrl;
-      //console.log("URL ảnh:", imageUrl);
+        imageUrls.push(urlData.publicUrl); // Thêm URL ảnh vào mảng
+      }
     }
 
     const product_post = {
@@ -60,7 +56,7 @@ export const createProductPost = async (productPostDetails) => {
       productname: title || "",
       productprice: price || "",
       productdesc: desc || "",
-      productimage: imageUrl || "",
+      productimage: JSON.stringify(imageUrls),
       productcategory:category || "",
       productstatus: status || "",
       uid: userId || "",
@@ -79,6 +75,8 @@ export const createProductPost = async (productPostDetails) => {
     return false;
   }
 };
+
+
 
 export const deleteProductPost = async (productId, fetchProducts) => {
   Alert.alert(

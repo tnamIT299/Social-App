@@ -456,7 +456,7 @@ const HomeScreen = () => {
                           <Text style={styles.cardDesc}>{post.pdesc}</Text>
                         )}
                         {post.pimage && (
-                          <ScrollView
+                          <View
                             contentContainerStyle={styles.containerImage}
                           >
                             <View style={styles.gridContainer}>
@@ -471,8 +471,8 @@ const HomeScreen = () => {
                                 ) : (
                                   <Swiper
                                     loop={true}
-                                    autoplay={false}
-                                    showsButtons={true}
+                                    autoplay={true}
+                                    showsButtons={false}
                                     style={styles.wrapper}
                                   >
                                     {JSON.parse(post.pimage).map(
@@ -491,7 +491,7 @@ const HomeScreen = () => {
                                 <Text>Không có hình ảnh nào</Text>
                               )}
                             </View>
-                          </ScrollView>
+                          </View>
                         )}
                       </>
                     ) : null}

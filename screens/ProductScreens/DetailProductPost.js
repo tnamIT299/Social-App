@@ -6,7 +6,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  ScrollView
+  ScrollView,
+  Dimensions
 } from "react-native";
 import {
   useNavigation,
@@ -16,10 +17,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../data/supabaseClient";
 import Icon from "react-native-vector-icons/Ionicons";
-import { getUserId,getUserName, getUserAvatar } from "../../data/getUserData";
+import Swiper from "react-native-swiper";
+import { getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
+const { width: screenWidth } = Dimensions.get("window");
 
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
@@ -35,8 +38,8 @@ const DetailProductPost = () => {
   const [userAvatar, setUserAvatar] = useState("");
   const navigation = useNavigation();
   console.log("productId", productId);
-  console.log("uid", uid); 
-  console.log("userId", userId); 
+  console.log("uid", uid);
+  console.log("userId", userId);
 
   const fetchProduct = async () => {
     if (!productId) return;
@@ -116,14 +119,37 @@ const DetailProductPost = () => {
       </View>
       <ScrollView style={styles.container}>
         {/* Product Image */}
-        <Image
-          style={styles.productImage}
-          source={{
-            uri:
-              product.productimage ||
-              "https://link-to-ps5-controller-image.jpg",
-          }}
-        />
+        {product.productimage && (
+          <View contentContainerStyle={styles.containerImage}>
+            <View style={styles.gridContainer}>
+              {product.productimage && 
+              Array.isArray(JSON.parse(product.productimage)) ? (
+                JSON.parse(product.productimage).length === 1 ? (
+                  <Image
+                    key={0}
+                    source={{ uri: JSON.parse(product.productimage)[0] }}
+                    style={styles.productImage}
+                  />
+                ) : (
+                  <Swiper
+                    loop={true}
+                    autoplay={false}
+                    showsButtons={false}
+                    style={styles.wrapper}
+                  >
+                    {JSON.parse(product.productimage).map((item, index) => (
+                      <View key={index} style={styles.slide}>
+                        <Image source={{ uri: item }} style={styles.image} />
+                      </View>
+                    ))}
+                  </Swiper>
+                )
+              ) : (
+                <Text>Không có hình ảnh nào</Text>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Product Title */}
         <Text style={styles.productTitle}>{product.productname}</Text>
@@ -177,7 +203,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
+    padding: 10,
   },
   header: {
     flexDirection: "row",
@@ -197,7 +223,7 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
   productTitle: {
-    fontSize: 18,
+    fontSize: 25,
     fontWeight: "bold",
     marginTop: 10,
   },
@@ -233,7 +259,7 @@ const styles = StyleSheet.create({
   sellerName: {
     fontSize: 16,
     fontWeight: "bold",
-    marginBottom:10,
+    marginBottom: 10,
   },
   contactButton: {
     backgroundColor: "#009EFF",
@@ -254,6 +280,33 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  contentContainer: {
+    flexDirection: "column",
+    flex: 1,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 10,
+  },
+  containerImage: {
+    flexGrow: 1,
+  },
+  gridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  wrapper: {
+    height: 250,
+  },
+  slide: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  image: {
+    width: screenWidth,
+    height: 250,
+    resizeMode: "cover",
   },
 });
 
