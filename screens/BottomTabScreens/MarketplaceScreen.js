@@ -123,7 +123,7 @@ const MarketplaceScreen = () => {
     const sortedProducts = [...products].sort(
       (a, b) => a.productprice - b.productprice
     );
-    setProducts(sortedProducts);
+    setFilteredProducts(sortedProducts);
   };
 
   // Hàm sắp xếp sản phẩm theo giá từ cao đến thấp
@@ -131,7 +131,7 @@ const MarketplaceScreen = () => {
     const sortedProducts = [...products].sort(
       (a, b) => b.productprice - a.productprice
     );
-    setProducts(sortedProducts);
+    setFilteredProducts(sortedProducts);
   };
 
   const renderItem = ({ item }) => {
