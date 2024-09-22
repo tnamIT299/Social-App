@@ -9,7 +9,7 @@ import TabNavigation from "./tabNavigation";
 import * as Linking from "expo-linking";
 import { FriendsScreen } from "../screens/BottomTabScreens";
 import {CreatePost, EditPost, PostDetailScreen} from "../screens/PostScreens";
-import { AddProductScreen, MyListProductPost,DetailProductPost } from "../screens/ProductScreens";
+import { AddProductScreen, MyListProductPost,DetailProductPost, EditProductPostScreen } from "../screens/ProductScreens";
 const Stack = createStackNavigator();
 
 function Navigation() {
@@ -34,6 +34,7 @@ function Navigation() {
         <Stack.Screen name="AddProductScreen" component={AddProductScreen} />
         <Stack.Screen name="MyListProductPost" component={MyListProductPost} />
         <Stack.Screen name="DetailProductPost" component={DetailProductPost} />
+        <Stack.Screen name="EditProductPostScreen" component={EditProductPostScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

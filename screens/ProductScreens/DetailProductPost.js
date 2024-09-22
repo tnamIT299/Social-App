@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  Dimensions
+  Dimensions,
 } from "react-native";
 import {
   useNavigation,
@@ -37,9 +37,6 @@ const DetailProductPost = () => {
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
   const navigation = useNavigation();
-  console.log("productId", productId);
-  console.log("uid", uid);
-  console.log("userId", userId);
 
   const fetchProduct = async () => {
     if (!productId) return;
@@ -122,7 +119,7 @@ const DetailProductPost = () => {
         {product.productimage && (
           <View contentContainerStyle={styles.containerImage}>
             <View style={styles.gridContainer}>
-              {product.productimage && 
+              {product.productimage &&
               Array.isArray(JSON.parse(product.productimage)) ? (
                 JSON.parse(product.productimage).length === 1 ? (
                   <Image
@@ -166,6 +163,10 @@ const DetailProductPost = () => {
           <Text>• {product.productdesc}</Text>
         </View>
 
+        <Text style={styles.statusText}>
+          Tình trạng : {product.productstatus}
+        </Text>
+
         {/* Seller Info */}
         {product && (
           <View style={styles.sellerInfo}>
@@ -187,7 +188,27 @@ const DetailProductPost = () => {
         )}
 
         {userId === product.User?.uid && (
-          <TouchableOpacity style={styles.contactButton}>
+          <TouchableOpacity
+            style={styles.contactButton}
+            onPress={() =>
+              navigation.navigate("EditProductPostScreen", {
+                screen: "EditProductPostTab", // Tên tab bạn muốn điều hướng đến
+                params: {
+                  productId: product.productid,
+                  userId: uid, // Bạn có thể thay `uid` bằng `userId` nếu nó phù hợp
+                  productName: product.productname,
+                  productPrice: product.productprice,
+                  productDesc: product.productdesc,
+                  productCategory: product.productcategory,
+                  productStatus: product.productstatus,
+                  productImage: JSON.parse(product.productimage),
+                  sellerName: product.User?.name,
+                  sellerAvatar: product.User?.avatar,
+                  timestamp: product.timestamp,
+                },
+              })
+            }
+          >
             <Text style={styles.contactButtonText}>Sửa thông tin sản phẩm</Text>
           </TouchableOpacity>
         )}
@@ -203,7 +224,8 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 10,
+    paddingHorizontal: 10,
+    marginBottom: 10,
   },
   header: {
     flexDirection: "row",
@@ -234,9 +256,15 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   timePosted: {
-    fontSize: 12,
+    fontSize: 15,
     color: "gray",
     marginBottom: 10,
+  },
+  statusText: {
+    fontSize: 18,
+    color: "black",
+    marginBottom: 10,
+    fontWeight: "bold",
   },
   description: {
     marginBottom: 10,
@@ -244,6 +272,7 @@ const styles = StyleSheet.create({
   descHeader: {
     fontWeight: "bold",
     marginBottom: 5,
+    fontSize: 18,
   },
   sellerInfo: {
     flexDirection: "row",
@@ -268,6 +297,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   contactButtonText: {
+    fontSize: 16,
     color: "#fff",
     fontWeight: "bold",
   },

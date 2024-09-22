@@ -471,8 +471,8 @@ const HomeScreen = () => {
                                 ) : (
                                   <Swiper
                                     loop={true}
-                                    autoplay={true}
-                                    showsButtons={false}
+                                    autoplay={false}
+                                    showsButtons={true}
                                     style={styles.wrapper}
                                   >
                                     {JSON.parse(post.pimage).map(
@@ -670,6 +670,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   statRow: {
+    top: 10,
     flexDirection: "column", // Column layout
     alignItems: "center", // Center align the like/comment/share text
     marginBottom: 10,

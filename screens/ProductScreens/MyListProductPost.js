@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
 import { deleteProductPost } from "../../server/ProductPostService";
 import { supabase } from "../../data/supabaseClient";
+import Swiper from "react-native-swiper";
 import { createStackNavigator } from "@react-navigation/stack";
 const Stack = createStackNavigator();
 
@@ -42,7 +43,7 @@ const MyListProductPostTab = () => {
 
     const { data, error } = await supabase
       .from("ProductPost")
-      .select("uid, productid, productname, productprice, productimage")
+      .select("*")
       .eq("uid", user.id);
 
     if (error) {
@@ -50,7 +51,7 @@ const MyListProductPostTab = () => {
     } else {
       setProducts(data);
       setFilteredProducts(data);
-      setselectedUId(uid)
+      setselectedUId(uid);
     }
 
     setLoading(false);
@@ -68,12 +69,12 @@ const MyListProductPostTab = () => {
 
   useEffect(() => {
     if (textSearch === "") {
-      setFilteredProducts(products); 
+      setFilteredProducts(products);
     } else {
       const filtered = products.filter((item) =>
         item.productname.toLowerCase().includes(textSearch.toLowerCase())
       );
-      setFilteredProducts(filtered); 
+      setFilteredProducts(filtered);
     }
   }, [textSearch, products]);
 
@@ -84,7 +85,29 @@ const MyListProductPostTab = () => {
 
   const handleDetailProductPost = () => {
     if (selectedProductId) {
-      navigation.navigate("DetailProductPost", { productId: selectedProductId, uid: selectedUId });
+      navigation.navigate("DetailProductPost", {
+        productId: selectedProductId,
+        uid: selectedUId,
+      });
+      toggleMenu(); // Close menu after navigating
+    }
+  };
+
+  const handleEditProductPost = (product) => {
+    if (product) {
+      navigation.navigate("EditProductPostScreen", {
+        screen: "EditProductPostTab", // Stack screen name
+        params: {
+          productId: product.productid,
+          uid: selectedUId, // Ensure selectedUId is set
+          productName: product.productname,
+          productPrice: product.productprice,
+          productDesc: product.productdesc,
+          productCategory: product.productcategory, // Ensure productCategory is set
+          productStatus: product.productstatus, // Ensure productStatus is set
+          productImage: JSON.parse(product.productimage), // Send product details
+        },
+      });
       toggleMenu(); // Close menu after navigating
     }
   };
@@ -94,49 +117,106 @@ const MyListProductPostTab = () => {
     deleteProductPost(productid, fetchProducts);
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <Icon 
-        name="ellipsis-vertical-outline" 
-        size={20} 
-        color="black" 
-        style={{ position: "absolute", right: 5, top: 10 }} 
-        onPress={() => toggleMenu(item.productid)} // Pass the product ID to toggleMenu
-      />
+  const renderItem = ({ item }) => {
+    let images = [];
 
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={visible}
-        onRequestClose={toggleMenu} // Đóng modal khi nhấn nút back trên Android
-      >
-        <TouchableOpacity style={styles.modalOverlay} onPress={toggleMenu}>
-          <View style={styles.menuContainer}>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={handleDetailProductPost} // Use handleDetailProductPost directly
-            >
-              <Text>Xem chi tiết</Text> 
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItem}
-            >
-              <Text>Sửa thông tin</Text> 
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => handleDeleteProductPost(selectedProductId)} // Use selectedProductId
-            >
-              <Text>Xoá</Text>
-            </TouchableOpacity>
+    // Kiểm tra nếu productimage là chuỗi JSON hợp lệ
+    try {
+      images = JSON.parse(item.productimage);
+    } catch (e) {
+      // Nếu không phải JSON, kiểm tra nếu đó là chuỗi URL đơn
+      if (
+        typeof item.productimage === "string" &&
+        item.productimage.startsWith("http")
+      ) {
+        images = [item.productimage]; // Đưa chuỗi URL vào mảng
+      } else {
+        console.log("Lỗi khi parse JSON hoặc không phải URL hợp lệ:", e);
+      }
+    }
+
+    return (
+      <View style={styles.card}>
+        <Icon
+          name="ellipsis-vertical-outline"
+          size={20}
+          color="black"
+          style={{ position: "absolute", right: 5, top: 10 }}
+          onPress={() => toggleMenu(item.productid)} // Pass the product ID to toggleMenu
+        />
+
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={visible}
+          onRequestClose={toggleMenu} // Đóng modal khi nhấn nút back trên Android
+        >
+          <TouchableOpacity style={styles.modalOverlay} onPress={toggleMenu}>
+            <View style={styles.menuContainer}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleDetailProductPost} // Use handleDetailProductPost directly
+              >
+                <Text>Xem chi tiết</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() =>
+                  handleEditProductPost(
+                    products.find(
+                      (item) => item.productid === selectedProductId
+                    )
+                  )
+                } // Pass the product object
+              >
+                <Text>Sửa thông tin</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => handleDeleteProductPost(selectedProductId)} // Use selectedProductId
+              >
+                <Text>Xoá</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {images.length > 0 ? (
+          <View style={styles.containerImage}>
+            {images.length === 1 ? (
+              <Image
+                key={0}
+                source={{ uri: images[0] }}
+                style={styles.cardImage}
+              />
+            ) : (
+              <Swiper
+                loop={true}
+                autoplay={true}
+                showsButtons={false}
+                style={styles.wrapper}
+              >
+                {images.map((img, index) => (
+                  <View key={index} style={styles.slide}>
+                    <Image source={{ uri: img }} style={styles.image} />
+                  </View>
+                ))}
+              </Swiper>
+            )}
           </View>
-        </TouchableOpacity>
-      </Modal>
-      <Image source={{ uri: item.productimage }} style={styles.image} />
-      <Text style={styles.title}>{item.productname}</Text>
-      <Text style={styles.price}>{item.productprice} VNĐ</Text>
-    </View>
-  );
+        ) : (
+          // Hiển thị hình ảnh mặc định nếu không có hình ảnh
+          <Image
+            source={require("../../assets/favicon.png")}
+            style={styles.cardImage}
+          />
+        )}
+
+        <Text style={styles.title}>{item.productname}</Text>
+        <Text style={styles.price}>{item.productprice} VNĐ</Text>
+      </View>
+    );
+  };
 
   if (loading) {
     return <ActivityIndicator size="large" color="#0000ff" />;
@@ -152,7 +232,12 @@ const MyListProductPostTab = () => {
           value={textSearch}
           onChangeText={setTextSearch}
         />
-        <Icon name="search-outline" size={30} color="#000" style={{ bottom: 8 }} />
+        <Icon
+          name="search-outline"
+          size={30}
+          color="#000"
+          style={{ bottom: 8 }}
+        />
       </View>
 
       {filteredProducts.length === 0 ? (
@@ -284,6 +369,29 @@ const styles = StyleSheet.create({
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
+  },
+  gridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  containerImage: {
+    width: "100%",
+    height: 150, // Match the height of the Swiper
+  },
+  wrapper: {
+    height: 150,
+  },
+  slide: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardImage: {
+    width: 120,
+    height: 150,
+    borderRadius: 10,
+    resizeMode: "contain",
   },
 });
 
