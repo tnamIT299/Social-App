@@ -21,6 +21,7 @@ const MarketplaceScreen = () => {
   const navigation = useNavigation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [noProductsFound, setNoProductsFound] = useState(false);
   const [productCategory, setProductCategory] = useState("");
   const [uid, setUid] = useState(null);
 
@@ -71,8 +72,15 @@ const MarketplaceScreen = () => {
     if (error) {
       console.log("Lỗi khi lấy dữ liệu:", error);
     } else {
-      console.log("Dữ liệu:", data);
-      setProducts(data); // Cập nhật state products với dữ liệu lấy từ Supabase
+      if (data.length === 0) {
+        // Nếu không có dữ liệu
+        setProducts([]); // Cập nhật state là mảng rỗng
+        setNoProductsFound(true); // Đặt state này để hiển thị thông báo
+      } else {
+        console.log("Dữ liệu:", data);
+        setProducts(data); // Cập nhật state products với dữ liệu từ Supabase
+        setNoProductsFound(false); // Đặt state về false nếu có dữ liệu
+      }
     }
 
     setLoading(false); // Tắt loading khi có dữ liệu
@@ -94,21 +102,40 @@ const MarketplaceScreen = () => {
     }, [])
   );
 
+  // Hàm sắp xếp sản phẩm theo giá từ thấp đến cao
+  const sortByPriceLowToHigh = () => {
+    const sortedProducts = [...products].sort(
+      (a, b) => a.productprice - b.productprice
+    );
+    setProducts(sortedProducts);
+  };
+
+  // Hàm sắp xếp sản phẩm theo giá từ cao đến thấp
+  const sortByPriceHighToLow = () => {
+    const sortedProducts = [...products].sort(
+      (a, b) => b.productprice - a.productprice
+    );
+    setProducts(sortedProducts);
+  };
+
   const renderItem = ({ item }) => {
     let images = [];
-  
+
     // Kiểm tra nếu productimage là chuỗi JSON hợp lệ
     try {
       images = JSON.parse(item.productimage);
     } catch (e) {
       // Nếu không phải JSON, kiểm tra nếu đó là chuỗi URL đơn
-      if (typeof item.productimage === "string" && item.productimage.startsWith("http")) {
+      if (
+        typeof item.productimage === "string" &&
+        item.productimage.startsWith("http")
+      ) {
         images = [item.productimage]; // Đưa chuỗi URL vào mảng
       } else {
         console.log("Lỗi khi parse JSON hoặc không phải URL hợp lệ:", e);
       }
     }
-  
+
     return (
       <View style={styles.card}>
         <TouchableOpacity
@@ -140,9 +167,9 @@ const MarketplaceScreen = () => {
             </View>
           ) : (
             // Hiển thị hình ảnh mặc định nếu không có hình ảnh
-            <Image 
-              source={require('../../assets/favicon.png')} 
-              style={styles.cardImage} 
+            <Image
+              source={require("../../assets/favicon.png")}
+              style={styles.cardImage}
             />
           )}
           <Text style={styles.title}>{item.productname}</Text>
@@ -151,9 +178,6 @@ const MarketplaceScreen = () => {
       </View>
     );
   };
-  
-  
-  
 
   if (loading) {
     return <ActivityIndicator size="large" color="#0000ff" />;
@@ -197,7 +221,7 @@ const MarketplaceScreen = () => {
         </View>
       </View>
 
-      <View style={{ padding: 10 }}>
+      <View style={{ padding: 5 }}>
         <RNPickerSelect
           onValueChange={(value) => setProductCategory(value)}
           items={[
@@ -213,16 +237,36 @@ const MarketplaceScreen = () => {
           style={pickerSelectStyles}
           placeholder={{ label: "Tất cả sản phẩm", value: null }}
         />
+        <Text style={styles.textSort}>Sắp xếp theo</Text>
+        <View style={styles.containerSort}>
+          <TouchableOpacity
+            style={styles.sortButton}
+            onPress={sortByPriceLowToHigh}
+          >
+            <Text>Giá Thấp - Cao</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.sortButton}
+            onPress={sortByPriceHighToLow}
+          >
+            <Text>Giá Cao - Thấp</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-
-      <FlatList
-        style={{ marginBottom: 60 }}
-        data={products}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.productid} // Sử dụng productid
-        numColumns={2}
-        contentContainerStyle={styles.grid}
-      />
+      {loading ? (
+        <View style={styles.notFoundContainer} />
+      ) : noProductsFound ? (
+        <Text style={styles.notFoundText}>Không tìm thấy sản phẩm nào</Text>
+      ) : (
+        <FlatList
+          style={{ marginBottom: 60 }}
+          data={products}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.productid} // Sử dụng productid
+          numColumns={2}
+          contentContainerStyle={styles.grid}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -307,7 +351,7 @@ const styles = StyleSheet.create({
     width: 150, // Adjust this value
     height: 150, // Adjust this value
     borderRadius: 10,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
   cardText: {
     marginTop: 5,
@@ -353,9 +397,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   image: {
-    width: '100%',
+    width: "100%",
     height: 150, // Set this height or adjust according to your needs
-    resizeMode: 'cover', // Make sure image fits properly
+    resizeMode: "cover", // Make sure image fits properly
   },
   title: {
     fontSize: 16,
@@ -372,7 +416,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   containerImage: {
-    width: '100%',
+    width: "100%",
     height: 150, // Match the height of the Swiper
   },
   wrapper: {
@@ -380,8 +424,35 @@ const styles = StyleSheet.create({
   },
   slide: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notFoundContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notFoundText: {
+    fontSize: 18,
+    color: "gray",
+    textAlign: "center",
+  },
+  textSort: {
+    padding: 10,
+    fontWeight: "bold",
+    fontSize: 18,
+  },
+  containerSort: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  sortButton: {
+    backgroundColor: "#ddd",
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "white",
   },
 });
 
