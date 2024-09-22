@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   FlatList,
   Dimensions,
+  TextInput,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -23,6 +24,9 @@ const MarketplaceScreen = () => {
   const [loading, setLoading] = useState(true);
   const [noProductsFound, setNoProductsFound] = useState(false);
   const [productCategory, setProductCategory] = useState("");
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [uid, setUid] = useState(null);
 
   const fetchProducts = async () => {
@@ -46,7 +50,8 @@ const MarketplaceScreen = () => {
       console.log("Lỗi khi lấy dữ liệu:", error);
     } else {
       console.log("Dữ liệu:", data);
-      setProducts(data); // Cập nhật state products với dữ liệu lấy từ Supabase
+      setProducts(data);
+      setFilteredProducts(data); // Cập nhật state products với dữ liệu lấy từ Supabase
       setUid(uid);
     }
 
@@ -101,6 +106,17 @@ const MarketplaceScreen = () => {
       fetchProducts(); // Gọi lại khi màn hình nhận focus
     }, [])
   );
+
+  useEffect(() => {
+    if (searchText === "") {
+      setFilteredProducts(products);
+    } else {
+      const filtered = products.filter((item) =>
+        item.productname.toLowerCase().includes(searchText.toLowerCase())
+      );
+      setFilteredProducts(filtered);
+    }
+  }, [searchText]);
 
   // Hàm sắp xếp sản phẩm theo giá từ thấp đến cao
   const sortByPriceLowToHigh = () => {
@@ -210,7 +226,7 @@ const MarketplaceScreen = () => {
             <Icon name="person-circle-outline" size={30} style={styles.icon} />
           </TouchableOpacity>
 
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => setSearchVisible(!searchVisible)}>
             <Icon
               name="search-outline"
               size={30}
@@ -219,6 +235,16 @@ const MarketplaceScreen = () => {
             />
           </TouchableOpacity>
         </View>
+      </View>
+      <View style={styles.searchContainer}>
+        {searchVisible && (
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm sản phẩm..."
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+        )}
       </View>
 
       <View style={{ padding: 5 }}>
@@ -260,7 +286,7 @@ const MarketplaceScreen = () => {
       ) : (
         <FlatList
           style={{ marginBottom: 60 }}
-          data={products}
+          data={filteredProducts}
           renderItem={renderItem}
           keyExtractor={(item) => item.productid} // Sử dụng productid
           numColumns={2}
@@ -453,6 +479,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "white",
+  },
+  searchInput: {
+    height: 40,
+    borderColor: "gray",
+    borderWidth: 1,
+    paddingLeft: 10,
+    borderRadius:15
+  },
+  searchContainer: {
+    paddingHorizontal:10,
+    paddingVertical:5
   },
 });
 
