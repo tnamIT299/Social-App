@@ -9,6 +9,7 @@ import TabNavigation from "./tabNavigation";
 import * as Linking from "expo-linking";
 import { FriendsScreen } from "../screens/BottomTabScreens";
 import { CreatePost, EditPost, PostDetailScreen } from "../screens/PostScreens";
+import { UserSearchScreen, PostSearchScreen } from "../screens/SearchScreens";
 import {
   AddProductScreen,
   MyListProductPost,
@@ -36,8 +37,8 @@ function Navigation() {
         <Stack.Screen name="EditPost" component={EditPost} />
 
         {/*Search Screen*/}
-        {/* <Stack.Screen name="UserSearchScreen" component={UserSearchScreen} />
-        <Stack.Screen name="PostSearchScreen" component={PostSearchScreen} /> */}
+        <Stack.Screen name="UserSearchScreen" component={UserSearchScreen} />
+        <Stack.Screen name="PostSearchScreen" component={PostSearchScreen} />
 
         {/*Friend Screen*/}
         <Stack.Screen name="FriendsScreen" component={FriendsScreen} />

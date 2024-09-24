@@ -24,7 +24,8 @@ dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
 const HomeScreen = () => {
-  const [visible, setVisible] = useState(false);
+  const [isAddModalVisible, setAddModalVisible] = useState(false);
+  const [isSearchModalVisible, setSearchModalVisible] = useState(false);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -66,17 +67,17 @@ const HomeScreen = () => {
   }, []);
 
   const handleCreatePost = () => {
-    toggleMenu(); // Đóng menu
+    toggleAddMenu(); // Đóng menu
     navigation.navigate("CreatePost"); // Điều hướng đến màn hình CreatePost
   };
 
   const handleSearchUser = () => {
-    toggleMenu(); // Đóng menu
+    toggleSearchMenu(); // Đóng menu
     navigation.navigate("UserSearchScreen"); // Điều hướng đến màn hình tìm kiếm người dùng
   };
 
   const handleSearchPost = () => {
-    toggleMenu(); // Đóng menu
+    toggleSearchMenu(); // Đóng menu
     navigation.navigate("PostSearchScreen"); // Điều hướng đến màn hình tìm kiếm bài viết
   };
 
@@ -97,8 +98,12 @@ const HomeScreen = () => {
     }, [])
   );
 
-  const toggleMenu = () => {
-    setVisible(!visible);
+  const toggleAddMenu = () => {
+    setAddModalVisible(!isAddModalVisible);
+  };
+
+  const toggleSearchMenu = () => {
+    setSearchModalVisible(!isSearchModalVisible);
   };
 
   return (
@@ -107,7 +112,7 @@ const HomeScreen = () => {
       <View style={styles.header}>
         <Text style={styles.logo}>Loopy</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={toggleMenu}>
+          <TouchableOpacity onPress={toggleAddMenu}>
             <Ionicons
               name="add-circle-outline"
               size={30}
@@ -119,10 +124,13 @@ const HomeScreen = () => {
           <Modal
             animationType="fade"
             transparent={true}
-            visible={visible}
-            onRequestClose={toggleMenu}
+            visible={isAddModalVisible}
+            onRequestClose={toggleAddMenu}
           >
-            <TouchableOpacity style={styles.modalOverlay} onPress={toggleMenu}>
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              onPress={toggleAddMenu}
+            >
               <View style={styles.menuContainer}>
                 <TouchableOpacity
                   style={styles.menuItem}
@@ -130,6 +138,39 @@ const HomeScreen = () => {
                 >
                   <Text>Tạo bài viết</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem}>
+                  <Text>Tạo tin</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem}>
+                  <Text>Tạo Short Video</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem}>
+                  <Text>Tạo Livestream</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+
+          <TouchableOpacity onPress={toggleSearchMenu}>
+            <Ionicons
+              name="search-outline"
+              size={30}
+              color="black"
+              style={styles.icon}
+            />
+          </TouchableOpacity>
+
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={isSearchModalVisible}
+            onRequestClose={toggleSearchMenu}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              onPress={toggleSearchMenu}
+            >
+              <View style={styles.menuContainer}>
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={handleSearchUser}
@@ -145,15 +186,6 @@ const HomeScreen = () => {
               </View>
             </TouchableOpacity>
           </Modal>
-
-          <TouchableOpacity>
-            <Ionicons
-              name="search-outline"
-              size={30}
-              color="black"
-              style={styles.icon}
-            />
-          </TouchableOpacity>
 
           <View style={styles.notificationIcon}>
             <TouchableOpacity>
