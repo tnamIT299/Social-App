@@ -2,96 +2,20 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
-  Button,
   ScrollView,
   StyleSheet,
-  Image,
   TouchableOpacity,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import { supabase } from "../../data/supabaseClient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-
-const FriendRequest = ({ avatar, name, onAccept, onDelete }) => (
-  <View style={styles.requestContainer}>
-    <Image source={{ uri: avatar }} style={styles.avatar} />
-    <View style={styles.requestInfo}>
-      <Text style={styles.name}>{name}</Text>
-      <View style={styles.buttonsContainer}>
-        <TouchableOpacity style={styles.acceptButton} onPress={onAccept}>
-          <Text style={styles.buttonText}>Xác nhận</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
-          <Text style={styles.buttonText}>Từ chối</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-);
-
-const FriendListItem = ({ avatar, name }) => (
-  <View style={styles.requestContainer}>
-    <Image source={{ uri: avatar }} style={styles.avatar} />
-    <View style={styles.requestInfo}>
-      <Text style={styles.name}>{name}</Text>
-    </View>
-  </View>
-);
-
-const SentInvitationItem = ({ avatar, name, onRevoke }) => (
-  <View style={styles.requestContainer}>
-    <Image source={{ uri: avatar }} style={styles.avatar} />
-    <View style={styles.requestInfo}>
-      <Text style={styles.name}>{name}</Text>
-      <TouchableOpacity style={styles.revokeButton} onPress={onRevoke}>
-        <Text style={styles.buttonText}>Thu hồi yêu cầu</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
-
-const FriendSuggestion = ({ avatar, name, onAddFriend, onRemove, onUndo }) => {
-  const [isFriendAdded, setIsFriendAdded] = useState(false);
-
-  const handleAddFriend = () => {
-    onAddFriend();
-    setIsFriendAdded(true); // Switch to Undo button
-  };
-
-  const handleUndo = () => {
-    onUndo();
-    setIsFriendAdded(false); // Switch back to Add/Remove buttons
-  };
-
-  return (
-    <View style={styles.requestContainer}>
-      <Image source={{ uri: avatar }} style={styles.avatar} />
-      <View style={styles.requestInfo}>
-        <Text style={styles.name}>{name}</Text>
-        <View style={styles.buttonsContainer}>
-          {isFriendAdded ? (
-            <TouchableOpacity style={styles.undoButton} onPress={handleUndo}>
-              <Text style={styles.buttonText}>Hoàn tác</Text>
-            </TouchableOpacity>
-          ) : (
-            <>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={handleAddFriend}
-              >
-                <Text style={styles.buttonText}>Thêm bạn bè</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
-                <Text style={styles.buttonText}>Ẩn</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </View>
-    </View>
-  );
-};
+import {
+  FriendListItem,
+  FriendRequest,
+  FriendSuggestion,
+  SentInvitationItem,
+} from "../FriendScreens";
 
 const FriendsScreen = () => {
   const [activeSection, setActiveSection] = useState("requests"); // Trạng thái mặc định là 'requests'
@@ -99,9 +23,6 @@ const FriendsScreen = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [friendList, setFriendList] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showFriendList, setShowFriendList] = useState(false);
-  const [showSentInvitations, setShowSentInvitations] = useState(false);
   const navigation = useNavigation();
 
   useFocusEffect(
@@ -312,232 +233,6 @@ const FriendsScreen = () => {
     }
   };
 
-  const handleSendFriendRequest = async (receiverId) => {
-    try {
-      // Lấy dữ liệu phiên đăng nhập hiện tại
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-
-      const currentUserId = sessionData?.session?.user?.id;
-      if (!currentUserId) {
-        console.error("Người dùng hiện tại không tồn tại.");
-        return;
-      }
-
-      // Kiểm tra xem người dùng đã gửi lời mời kết bạn tới người nhận chưa
-      const { data: existingRequests, error: existingRequestsError } =
-        await supabase
-          .from("Friendship")
-          .select("*")
-          .eq("requester_id", currentUserId)
-          .eq("receiver_id", receiverId)
-          .eq("status", "pending");
-
-      if (existingRequestsError) throw existingRequestsError;
-
-      if (existingRequests.length > 0) {
-        console.log("Lời mời kết bạn đã được gửi đến người nhận.");
-        return;
-      }
-
-      // Kiểm tra xem người dùng đã là bạn với người nhận chưa
-      const { data: friendshipsByUser, error: friendshipsByUserError } =
-        await supabase
-          .from("Friendship")
-          .select("*")
-          .or(
-            `requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`
-          )
-          .or(`requester_id.eq.${receiverId},receiver_id.eq.${receiverId}`);
-
-      if (friendshipsByUserError) throw friendshipsByUserError;
-
-      if (friendshipsByUser.length > 0) {
-        console.log(
-          "Người dùng đã là bạn hoặc đã gửi lời mời kết bạn đến người nhận."
-        );
-        return;
-      }
-
-      // Kiểm tra và xóa lời mời kết bạn nếu đã có ở phía người nhận
-      const {
-        data: existingReceivedRequests,
-        error: existingReceivedRequestsError,
-      } = await supabase
-        .from("Friendship")
-        .select("*")
-        .eq("requester_id", receiverId)
-        .eq("receiver_id", currentUserId)
-        .eq("status", "pending");
-
-      if (existingReceivedRequestsError) throw existingReceivedRequestsError;
-
-      if (existingReceivedRequests.length > 0) {
-        const { error: deleteRequestError } = await supabase
-          .from("Friendship")
-          .delete()
-          .eq("requester_id", receiverId)
-          .eq("receiver_id", currentUserId)
-          .eq("status", "pending");
-
-        if (deleteRequestError) throw deleteRequestError;
-      }
-
-      // Gửi lời mời kết bạn
-      const { error: insertError } = await supabase.from("Friendship").insert({
-        requester_id: currentUserId,
-        receiver_id: receiverId,
-        status: "pending",
-      });
-
-      if (insertError) throw insertError;
-
-      console.log("Lời mời kết bạn đã được gửi thành công.");
-
-      // Cập nhật danh sách gợi ý kết bạn và lời mời kết bạn
-      fetchSuggestions();
-      fetchSentInvitations();
-    } catch (error) {
-      console.error("Đã xảy ra lỗi:", error.message || error);
-    }
-  };
-
-  const handleRemoveFriendSuggestion = async (userId) => {
-    setSuggestions(
-      suggestions.filter((suggestion) => suggestion.id !== userId)
-    );
-  };
-
-  const handleUndoAddFriend = async (receiverId) => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserId = sessionData?.session?.user?.id;
-
-      if (!currentUserId) return;
-      // Lấy ID của yêu cầu kết bạn từ cơ sở dữ liệu
-      const { data: friendshipRequests, error: friendshipError } =
-        await supabase
-          .from("Friendship")
-          .select("id")
-          .eq("requester_id", currentUserId)
-          .eq("receiver_id", receiverId)
-          .eq("status", "pending");
-
-      if (friendshipError) {
-        throw new Error(
-          `Lỗi khi lấy yêu cầu kết bạn: ${friendshipError.message}`
-        );
-      }
-
-      if (friendshipRequests.length === 0) {
-        console.log("Yêu cầu kết bạn không tìm thấy.");
-        return;
-      }
-
-      const friendshipId = friendshipRequests[0].id;
-
-      // Cập nhật giao diện người dùng ngay lập tức
-      setSuggestions(
-        suggestions.map((suggestion) =>
-          suggestion.id === receiverId
-            ? { ...suggestion, isFriendAdded: false }
-            : suggestion
-        )
-      );
-
-      // Thực hiện thao tác xóa trong cơ sở dữ liệu để hủy yêu cầu kết bạn
-      const { error: deleteError } = await supabase
-        .from("Friendship")
-        .delete()
-        .eq("id", friendshipId);
-
-      if (deleteError) {
-        throw new Error(`Lỗi khi hoàn tác thêm bạn bè: ${deleteError.message}`);
-      }
-    } catch (error) {
-      // Nếu có lỗi, hiển thị thông báo lỗi và hoàn tác thay đổi trên giao diện
-      console.error(error.message);
-      setSuggestions(
-        suggestions.map((suggestion) =>
-          suggestion.id === receiverId
-            ? { ...suggestion, isFriendAdded: true }
-            : suggestion
-        )
-      );
-    }
-  };
-
-  const handleAcceptFriendRequest = async (requestId) => {
-    const { error } = await supabase
-      .from("Friendship")
-      .update({ status: "accepted" })
-      .eq("id", requestId);
-
-    if (error) {
-      console.error("Lỗi khi chấp nhận lời mời kết bạn:", error);
-    } else {
-      fetchFriendRequests();
-      fetchFriendList();
-    }
-  };
-
-  const handleDeleteFriendRequest = async (requestId) => {
-    const { error } = await supabase
-      .from("Friendship")
-      .delete()
-      .eq("id", requestId);
-
-    if (error) {
-      console.error("Lỗi khi xóa lời mời kết bạn:", error);
-    } else {
-      fetchFriendRequests();
-    }
-  };
-
-  const handleRevokeInvitation = async (receiverId) => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const currentUserId = sessionData?.session?.user?.id;
-
-    if (!currentUserId) {
-      console.error("Người dùng hiện tại không tồn tại.");
-      return;
-    }
-
-    // Lấy ID của yêu cầu kết bạn từ cơ sở dữ liệu
-    const { data: friendshipRequests, error: friendshipError } = await supabase
-      .from("Friendship")
-      .select("id")
-      .eq("requester_id", currentUserId)
-      .eq("receiver_id", receiverId)
-      .eq("status", "pending");
-
-    if (friendshipError) {
-      console.error("Lỗi khi lấy yêu cầu kết bạn:", friendshipError);
-      return;
-    }
-
-    if (friendshipRequests.length === 0) {
-      console.log("Yêu cầu kết bạn không tìm thấy.");
-      return;
-    }
-
-    const friendshipId = friendshipRequests[0].id;
-
-    // Xóa yêu cầu kết bạn trong cơ sở dữ liệu
-    const { error: deleteError } = await supabase
-      .from("Friendship")
-      .delete()
-      .eq("id", friendshipId);
-
-    if (deleteError) {
-      console.error("Lỗi khi thu hồi yêu cầu kết bạn:", deleteError);
-    } else {
-      // Cập nhật lại danh sách lời mời đã gửi
-      fetchSentInvitations();
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -593,8 +288,9 @@ const FriendsScreen = () => {
               key={request.id}
               avatar={request.avatar}
               name={request.name}
-              onAccept={() => handleAcceptFriendRequest(request.id)}
-              onDelete={() => handleDeleteFriendRequest(request.id)}
+              requestId={request.id}
+              fetchFriendRequests={fetchFriendRequests}
+              fetchFriendList={fetchFriendList}
             />
           ))}
         {activeSection === "suggestions" &&
@@ -603,9 +299,12 @@ const FriendsScreen = () => {
               key={suggestion.id}
               avatar={suggestion.avatar}
               name={suggestion.name}
-              onAddFriend={() => handleSendFriendRequest(suggestion.id)}
-              onRemove={() => handleRemoveFriendSuggestion(suggestion.id)}
-              onUndo={() => handleUndoAddFriend(suggestion.id)}
+              receiverId={suggestion.id}
+              fetchSuggestions={fetchSuggestions}
+              fetchSentInvitations={fetchSentInvitations}
+              userId={suggestion.id}
+              suggestions={suggestions}
+              setSuggestions={setSuggestions}
             />
           ))}
         {activeSection === "friendList" &&
@@ -622,7 +321,8 @@ const FriendsScreen = () => {
               key={invitation.id}
               avatar={invitation.avatar}
               name={invitation.name}
-              onRevoke={() => handleRevokeInvitation(invitation.id)}
+              receiverId={invitation.id}
+              fetchSentInvitations={fetchSentInvitations}
             />
           ))}
       </ScrollView>
@@ -669,69 +369,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     elevation: 5, // Shadow for Android
-  },
-  buttonText: {
-    fontSize: 16,
-    color: "#FFF",
-    textAlign: "center",
-  },
-  requestContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 10,
-  },
-  requestInfo: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  buttonsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  acceptButton: {
-    backgroundColor: "#4CAF50",
-    padding: 10,
-    borderRadius: 5,
-  },
-  deleteButton: {
-    backgroundColor: "#f44336",
-    padding: 10,
-    borderRadius: 5,
-  },
-  undoButton: {
-    backgroundColor: "#FFC107",
-    padding: 10,
-    borderRadius: 5,
-  },
-  addButton: {
-    backgroundColor: "#2196F3",
-    padding: 10,
-    borderRadius: 5,
-  },
-  removeButton: {
-    backgroundColor: "#f44336",
-    padding: 10,
-    borderRadius: 5,
-  },
-  invitationStatus: {
-    fontSize: 14,
-    color: "#888",
-  },
-  revokeButton: {
-    backgroundColor: "#FFC107",
-    padding: 10,
-    borderRadius: 5,
   },
 });
 
