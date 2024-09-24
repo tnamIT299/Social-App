@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  SafeAreaView,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../data/supabaseClient"; // Giả định bạn đã cấu hình Supabase client
@@ -54,29 +55,31 @@ const UserSearchScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Tìm kiếm..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
-      <FlatList
-        data={users}
-        keyExtractor={(item) => item.uid.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.userItem}>
-            <Text>{item.name}</Text>
-            <TouchableOpacity
-              style={item.added ? styles.removeButton : styles.addButton}
-              onPress={() => handleAddOrRemove(item.uid, item.added)}
-            >
-              <Text>{item.added ? "Xoá" : "Thêm"}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
-    </View>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TextInput
+          style={styles.boxSearch}
+          placeholder="Tìm kiếm..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <FlatList
+          data={users}
+          keyExtractor={(item) => item.uid.toString()}
+          renderItem={({ item }) => (
+            <View style={styles.userItem}>
+              <Text>{item.name}</Text>
+              <TouchableOpacity
+                style={item.added ? styles.removeButton : styles.addButton}
+                onPress={() => handleAddOrRemove(item.uid, item.added)}
+              >
+                <Text>{item.added ? "Xoá" : "Thêm"}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        />
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -85,11 +88,20 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 10,
   },
-  searchInput: {
-    height: 40,
-    marginBottom: 20,
+  header: {
+    paddingTop: 45, // Để tạo khoảng cách từ trên cùng
+    justifyContent: "center", // Căn giữa ngang
+    alignItems: "center", // Căn giữa dọc
+    paddingHorizontal: 15,
+  },
+  boxSearch: {
+    borderColor: "#ccc",
     borderWidth: 1,
+    borderRadius: 10,
     padding: 10,
+    height: 40,
+    width: "90%",
+    alignSelf: "center", // Căn giữa thanh tìm kiếm
   },
   userItem: {
     flexDirection: "row",
