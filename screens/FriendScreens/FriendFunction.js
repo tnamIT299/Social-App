@@ -202,3 +202,79 @@ export const handleRevokeInvitation = async (
     console.error("Lỗi khi thu hồi yêu cầu kết bạn:", error);
   }
 };
+
+// Hàm xóa quan hệ bạn bè
+export const handleRemoveFriend = async (friendId) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const currentUserId = sessionData?.session?.user?.id;
+
+  if (!currentUserId || !friendId) {
+    console.error("Thiếu thông tin người dùng hoặc bạn bè.");
+    return { success: false, error: "Thiếu thông tin người dùng hoặc bạn bè." };
+  }
+
+  try {
+    // Kiểm tra xem quan hệ bạn bè có tồn tại không (trường hợp 1: người hiện tại là requester)
+    const { data: friendshipData1, error: checkError1 } = await supabase
+      .from("Friendship")
+      .select("*")
+      .eq("requester_id", currentUserId)
+      .eq("receiver_id", friendId)
+      .eq("status", "accepted");
+
+    // Nếu quan hệ bạn bè không tồn tại ở chiều này, kiểm tra chiều ngược lại (trường hợp 2: người hiện tại là receiver)
+    if (!friendshipData1 || friendshipData1.length === 0) {
+      const { data: friendshipData2, error: checkError2 } = await supabase
+        .from("Friendship")
+        .select("*")
+        .eq("requester_id", friendId)
+        .eq("receiver_id", currentUserId)
+        .eq("status", "accepted");
+
+      if (checkError2) {
+        console.error("Lỗi khi kiểm tra quan hệ bạn bè:", checkError2);
+        return { success: false, error: "Lỗi khi kiểm tra quan hệ bạn bè." };
+      }
+
+      if (!friendshipData2 || friendshipData2.length === 0) {
+        console.error("Không tìm thấy quan hệ bạn bè.");
+        return { success: false, error: "Không tìm thấy quan hệ bạn bè." };
+      }
+
+      // Nếu tồn tại quan hệ bạn bè ở chiều ngược lại, thực hiện xóa
+      const { error: deleteError2 } = await supabase
+        .from("Friendship")
+        .delete()
+        .eq("requester_id", friendId)
+        .eq("receiver_id", currentUserId)
+        .eq("status", "accepted");
+
+      if (deleteError2) {
+        console.error("Lỗi khi xóa quan hệ bạn bè:", deleteError2);
+        return { success: false, error: "Lỗi khi xóa quan hệ bạn bè." };
+      }
+
+      console.log("Đã xóa quan hệ bạn bè thành công.");
+      return { success: true, error: null };
+    }
+
+    // Nếu tồn tại quan hệ bạn bè ở chiều đầu tiên, thực hiện xóa
+    const { error: deleteError1 } = await supabase
+      .from("Friendship")
+      .delete()
+      .eq("requester_id", currentUserId)
+      .eq("receiver_id", friendId)
+      .eq("status", "accepted");
+
+    if (deleteError1) {
+      console.error("Lỗi khi xóa quan hệ bạn bè:", deleteError1);
+      return { success: false, error: "Lỗi khi xóa quan hệ bạn bè." };
+    }
+
+    console.log("Đã xóa quan hệ bạn bè thành công.");
+    return { success: true, error: null };
+  } catch (error) {
+    console.error("Lỗi khi thực hiện xóa:", error.message || error);
+    return { success: false, error: error.message || "Đã xảy ra lỗi." };
+  }
+};

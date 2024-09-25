@@ -313,6 +313,8 @@ const FriendsScreen = () => {
               key={friend.id}
               avatar={friend.avatar}
               name={friend.name}
+              friendId={friend.id}
+              fetchFriendList={fetchFriendList}
             />
           ))}
         {activeSection === "sentInvitations" &&
