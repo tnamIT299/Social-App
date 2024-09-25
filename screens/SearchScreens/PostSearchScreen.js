@@ -5,11 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
+  TouchableOpacity,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import PostScreen from "../PostScreens/PostScreen";
 import { getUserId } from "../../data/getUserData";
-import Icon from "react-native-vector-icons/Ionicons";
+import { Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons";
 import { supabase } from "../../data/supabaseClient"; // Kết nối Supabase
 
 const PostSearchScreen = () => {
@@ -96,6 +97,14 @@ const PostSearchScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons
+            name="arrow-back"
+            size={30}
+            color="black"
+            style={{ right: 12 }}
+          />
+        </TouchableOpacity>
         <TextInput
           style={styles.boxSearch}
           placeholder="Tìm kiếm bài viết..."
@@ -125,8 +134,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+    padding: 10,
   },
   header: {
+    flexDirection: "row",
     paddingTop: 45, // Để tạo khoảng cách từ trên cùng
     justifyContent: "center", // Căn giữa ngang
     alignItems: "center", // Căn giữa dọc
