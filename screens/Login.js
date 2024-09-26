@@ -13,6 +13,10 @@ import { useFonts } from "expo-font";
 import Icon from "react-native-vector-icons/FontAwesome6";
 import { supabase } from "../data/supabaseClient";
 import { saveUserData } from "../data/saveUserData";
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from "uuid";
+
+
 
 const Login = ({ navigation }) => {
   const [email, setEmail] = useState("");
@@ -20,6 +24,7 @@ const Login = ({ navigation }) => {
   const [error, setError] = useState("");
   // State để kiểm soát chế độ hiển thị mật khẩu
   const [passwordVisible, setPasswordVisible] = useState(false);
+  
 
   let [fontsLoaded] = useFonts({
     "KaushanScript-Regular": require("../assets/font/KaushanScript-Regular.ttf"),
@@ -28,44 +33,89 @@ const Login = ({ navigation }) => {
   if (!fontsLoaded) {
     return <Text>Loading...</Text>;
   }
-
+  const generateToken = () => {
+    return uuidv4(); // Tạo token UUID ngẫu nhiên
+  };
   const handleLogin = async () => {
     // Regex để kiểm tra định dạng email
     const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
-
+  
     // Kiểm tra điều kiện email
     if (!emailRegex.test(email)) {
       setError("Email không hợp lệ");
       return;
     }
-
-    // Nếu email hợp lệ, tiếp tục thực hiện đăng nhập
+  
+    // Tạo token ngẫu nhiên cho currentDevice
+    const currentDevice = generateToken();
+  
     try {
+      // Đăng nhập bằng email và mật khẩu
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
+  
       if (error) {
         console.log("Login Error:", error); // Log lỗi ra console
         setError(error.message);
       } else {
         setError("");
-        Alert.alert("Thông báo", "Đăng nhập thành công!");
-        // Fetch user details and save to AsyncStorage
         const { user } = data;
-
+  
         if (user) {
-          // Save user ID and other info into AsyncStorage
-          await saveUserData(user.id);
+          // Lấy thông tin currentDevice của người dùng từ bảng User
+          const { data: userData, error: userError } = await supabase
+            .from('User')
+            .select('currentDevice')
+            .eq('uid', user.id)
+            .single();
+  
+          if (userError) {
+            console.error("Error fetching user data:", userError);
+            setError("Có lỗi xảy ra, vui lòng thử lại.");
+            return;
+          }
+  
+          // Kiểm tra nếu `currentDevice` là null thì lưu token mới vào
+          if (!userData.currentDevice) {
+            const { error: updateError } = await supabase
+              .from('User')
+              .update({ currentDevice: currentDevice }) // Cập nhật với token mới
+              .eq('uid', user.id);
+  
+            if (updateError) {
+              console.error("Error updating device:", updateError);
+              setError("Có lỗi khi cập nhật thiết bị.");
+              return;
+            }
+  
+            // Lưu thông tin người dùng vào AsyncStorage
+            await saveUserData(user.id);
+  
+            // Điều hướng đến màn hình chính
+            Alert.alert("Thông báo", "Đăng nhập thành công!");
+            navigation.navigate("TabNavigation");
+          } 
+          // Nếu `currentDevice` không phải là null và khác với token hiện tại, từ chối đăng nhập
+          else if (userData.currentDevice !== currentDevice) {
+            setError("Tài khoản đang đăng nhập ở thiết bị khác.");
+            return;
+          }
+  
+          // Nếu thiết bị đã đăng nhập trước đó và trùng với currentDevice, cho phép tiếp tục
+          else {
+            await saveUserData(user.id);
+            navigation.navigate("TabNavigation");
+          }
         }
-        navigation.navigate("TabNavigation");
       }
     } catch (error) {
       console.error("Unexpected Error:", error); // Log lỗi bất ngờ ra console
       setError("Có lỗi xảy ra, vui lòng thử lại.");
     }
   };
+
 
   return (
     <ImageBackground

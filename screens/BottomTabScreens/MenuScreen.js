@@ -53,10 +53,36 @@ const MenuScreen = ({navigation}) => {
           text: "Đăng xuất",
           onPress: async () => {
             try {
-              // Gọi phương thức signOut từ Supabase
-              await supabase.auth.signOut();
-              Alert.alert("Đăng xuất thành công");
-              navigation.navigate('Login');
+              // Lấy thông tin người dùng hiện tại từ Supabase
+              const {
+                data: { user },
+                error: fetchUserError,
+              } = await supabase.auth.getUser();
+  
+              if (fetchUserError) {
+                Alert.alert("Có lỗi xảy ra", fetchUserError.message);
+                return;
+              }
+  
+              if (user) {
+                // Xóa giá trị currentDevice trong bảng User
+                const { error: updateError } = await supabase
+                  .from('User')
+                  .update({ currentDevice: null })
+                  .eq('uid', user.id);
+  
+                if (updateError) {
+                  Alert.alert("Có lỗi khi cập nhật thiết bị", updateError.message);
+                  return;
+                }
+  
+                // Gọi phương thức signOut từ Supabase để đăng xuất người dùng
+                await supabase.auth.signOut();
+                Alert.alert("Đăng xuất thành công");
+  
+                // Điều hướng về màn hình đăng nhập
+                navigation.navigate('Login');
+              }
             } catch (error) {
               Alert.alert("Có lỗi xảy ra", error.message);
             }
@@ -65,6 +91,8 @@ const MenuScreen = ({navigation}) => {
       ]
     );
   };
+  
+  
 
 
   return (
