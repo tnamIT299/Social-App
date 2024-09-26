@@ -15,6 +15,7 @@ import {
   FriendSuggestion,
   SentInvitationItem,
   FriendListItem,
+  FriendRequest,
 } from "../FriendScreens";
 
 const UserSearchScreen = () => {
@@ -24,6 +25,7 @@ const UserSearchScreen = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [friendList, setFriendList] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
+  const [requests, setRequests] = useState([]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -69,47 +71,84 @@ const UserSearchScreen = () => {
       const { data: pendingRequests, error: pendingRequestsError } =
         await supabase
           .from("Friendship")
-          .select("requester_id")
+          .select("requester_id, User!requester_id(uid, name, avatar)") // Liên kết với bảng User qua requester_id
           .eq("receiver_id", currentUserId)
           .eq("status", "pending");
 
       if (pendingRequestsError) throw pendingRequestsError;
 
-      // Tạo danh sách ID đã gửi lời mời
+      // Lấy danh sách những người dùng hiện tại đã gửi lời mời kết bạn
+      const { data: sentRequests, error: sentRequestsError } = await supabase
+        .from("Friendship")
+        .select("receiver_id, User!receiver_id(uid, name, avatar)") // Liên kết với bảng User qua receiver_id
+        .eq("requester_id", currentUserId)
+        .eq("status", "pending");
+
+      if (sentRequestsError) throw sentRequestsError;
+
+      // Tạo danh sách ID đã gửi và nhận lời mời
       const pendingRequestIds = pendingRequests.map(
         (request) => request.requester_id
       );
+      const sentRequestIds = sentRequests.map((request) => request.receiver_id);
 
       // Phân loại người dùng theo mối quan hệ
       const results = userData.map((user) => {
+        // Kiểm tra xem người dùng có phải bạn bè không (status "accepted")
         const isFriend = friendships.some(
           (friend) =>
-            (friend.requester_id === user.uid &&
+            friend.status === "accepted" &&
+            ((friend.requester_id === user.uid &&
               friend.receiver_id === currentUserId) ||
-            (friend.receiver_id === user.uid &&
-              friend.requester_id === currentUserId)
+              (friend.receiver_id === user.uid &&
+                friend.requester_id === currentUserId))
         );
 
         const isPending = pendingRequestIds.includes(user.uid);
+        const isSentInvitation = sentRequestIds.includes(user.uid);
 
         return {
           id: user.uid,
           name: user.name,
           avatar: user.avatar || "https://via.placeholder.com/150", // Avatar mặc định nếu không có
-          relationship: isFriend ? "friend" : isPending ? "pending" : "none", // "none" nếu không có mối quan hệ nào
+          relationship: isFriend
+            ? "friend"
+            : isPending
+            ? "pending"
+            : isSentInvitation
+            ? "sent"
+            : "none", // "none" nếu không có mối quan hệ nào
         };
       });
 
       // Cập nhật danh sách người dùng lên UI
       setUsers(results);
 
-      // Phân loại lại các danh sách
+      // Lấy danh sách chỉ chứa bạn bè (status "accepted")
       const friends = results.filter((user) => user.relationship === "friend");
-      const pending = results.filter((user) => user.relationship === "pending");
-      const none = results.filter((user) => user.relationship === "none");
+
+      // Lấy danh sách người đã gửi lời mời kết bạn đến người dùng hiện tại
+      const pending = pendingRequests.map((request) => ({
+        id: request.requester_id,
+        name: request.User.name,
+        avatar: request.User.avatar || "https://via.placeholder.com/150",
+      }));
+
+      // Lấy danh sách người mà người dùng hiện tại đã gửi lời mời kết bạn
+      const sent = sentRequests.map((request) => ({
+        id: request.receiver_id,
+        name: request.User.name,
+        avatar: request.User.avatar || "https://via.placeholder.com/150",
+      }));
+
+      // Lấy danh sách người không có mối quan hệ nào
+      const none = results
+        .filter((user) => user.relationship === "none")
+        .filter((user) => user.id !== currentUserId); // Loại bỏ người dùng hiện tại khỏi danh sách "none"
 
       setFriendList(friends);
-      setSentInvitations(pending);
+      setSentInvitations(sent); // Thêm người dùng đã được gửi lời mời
+      setRequests(pending); // Những người dùng đã gửi lời mời kết bạn đến người dùng hiện tại
       setSuggestions(none); // Bạn có thể thay đổi nếu muốn tên "suggestions" cho những người không có mối quan hệ nào
     } catch (error) {
       console.error("Lỗi khi tìm kiếm người dùng:", error.message || error);
@@ -165,6 +204,22 @@ const UserSearchScreen = () => {
                 fetchSentInvitations={fetchUsers}
               />
             ))}
+
+            {requests.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Lời mời kết bạn</Text>
+                {requests.map((request) => (
+                  <FriendRequest
+                    key={request.id}
+                    avatar={request.avatar}
+                    name={request.name}
+                    requestId={request.id}
+                    fetchFriendRequests={fetchUsers}
+                    fetchFriendList={fetchUsers}
+                  />
+                ))}
+              </>
+            )}
 
             {suggestions.length > 0 && (
               <Text style={styles.sectionTitle}>Người lạ</Text>
