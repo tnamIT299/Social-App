@@ -20,7 +20,7 @@ import {
   useFocusEffect,
 } from "@react-navigation/native";
 import { supabase } from "../../data/supabaseClient";
-import { sendComment } from "../../server/CommentService";
+import { handleSendComment } from "./PostFunctions";
 import { getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
 import Swiper from "react-native-swiper";
 import dayjs from "dayjs";
@@ -193,87 +193,17 @@ const PostDetailScreen = () => {
       console.error("Error updating like count:", error.message);
     }
   };
-
-  const handleSendComment = async () => {
-    // Lấy dữ liệu id người dùng
-    const userId = await getUserId();
-
-    if (!userId) {
-      Alert.alert("Error", "User ID is not available.");
-      return;
-    }
-
-    if (newComment.trim() === "") return; // Không gửi bình luận rỗng
-
-    const commentDetails = {
-      newComment: newComment,
-      userId: userId,
-      postId: postId,
-    };
-
-    // Tạo bình luận tạm thời để hiển thị lên giao diện ngay lập tức
-    const tempComment = {
-      cid: Date.now(), // Sử dụng tạm thời ID để không trùng lặp
-      comment: newComment,
-      User: {
-        name: userName, // Hiển thị tên người dùng hiện tại
-        avatar: userAvatar || "https://via.placeholder.com/150", // Hoặc avatar của người dùng từ profile
-      },
-      timestamp: new Date().toISOString(),
-    };
-
-    // Thêm bình luận mới vào giao diện ngay lập tức
-    setComments((prevComments) =>
-      [tempComment, ...prevComments].sort(
-        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-      )
+  // Sử dụng trong component của bạn
+  const handleComment = async () => {
+    await handleSendComment(
+      newComment,
+      postId,
+      userName,
+      userAvatar,
+      setComments,
+      setPost,
+      setNewComment
     );
-
-    // Reset khung nhập liệu
-    setNewComment("");
-
-    try {
-      // Gửi bình luận lên Supabase
-      const success = await sendComment(commentDetails);
-
-      if (!success) {
-        Alert.alert("Error", "Lỗi khi gửi bình luận");
-      } else {
-        // Tăng số lượng bình luận
-        await incrementCommentCount(postId);
-
-        // Cập nhật số lượng bình luận mới trên bài đăng
-        setPost((prevPost) => ({
-          ...prevPost,
-          pcomment: prevPost.pcomment + 1,
-        }));
-      }
-    } catch (error) {
-      console.error("Error sending comment:", error.message);
-    }
-  };
-
-  const incrementCommentCount = async (postId) => {
-    try {
-      const { data: post, error: postError } = await supabase
-        .from("Post")
-        .select("pcomment")
-        .eq("pid", postId)
-        .single();
-
-      if (postError) throw postError;
-
-      const newCommentCount = post.pcomment + 1;
-
-      const { error } = await supabase
-        .from("Post")
-        .update({ pcomment: newCommentCount })
-        .eq("pid", postId);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error("Error updating comment count:", error.message);
-    }
   };
 
   useFocusEffect(
@@ -488,7 +418,7 @@ const PostDetailScreen = () => {
                 value={newComment}
                 onChangeText={setNewComment}
               />
-              <TouchableOpacity onPress={handleSendComment}>
+              <TouchableOpacity onPress={handleComment}>
                 <Ionicons name="send" size={30} color="black" />
               </TouchableOpacity>
             </View>

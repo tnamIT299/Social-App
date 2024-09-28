@@ -7,8 +7,10 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { getUserName, getUserAvatar } from "../../data/getUserData";
 import { Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons";
 import { supabase } from "../../data/supabaseClient"; // Giả định bạn đã cấu hình Supabase client
 import {
@@ -21,6 +23,8 @@ import {
 const UserSearchScreen = () => {
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [userName, setUserName] = useState("");
+  const [userAvatar, setUserAvatar] = useState("");
   const [users, setUsers] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [friendList, setFriendList] = useState([]);
@@ -48,14 +52,33 @@ const UserSearchScreen = () => {
         return;
       }
 
+      // Lấy thông tin người dùng hiện tại
+      const Name = await getUserName();
+      setUserName(Name);
+      const Avatar = await getUserAvatar();
+      setUserAvatar(Avatar);
+
       // Truy vấn người dùng từ Supabase dựa trên từ khóa tìm kiếm
       let { data: userData, error: userError } = await supabase
         .from("User")
         .select("uid, name, avatar")
-        .ilike("name", `%${query}%`); // Tìm kiếm người dùng với tên chứa từ khóa (case-insensitive)
+        .ilike("name", `%${query}%`);
 
       if (userError) {
         console.error("Lỗi khi lấy danh sách người dùng:", userError);
+        return;
+      }
+
+      // Kiểm tra nếu kết quả tìm kiếm chỉ có một người và đó là chính bạn
+      if (userData.length === 1 && userData[0].uid === currentUserId) {
+        setUsers([
+          {
+            id: userData[0].uid,
+            name: userData[0].name,
+            avatar: userData[0].avatar || "https://via.placeholder.com/150",
+            relationship: "self",
+          },
+        ]);
         return;
       }
 
@@ -71,7 +94,7 @@ const UserSearchScreen = () => {
       const { data: pendingRequests, error: pendingRequestsError } =
         await supabase
           .from("Friendship")
-          .select("requester_id, User!requester_id(uid, name, avatar)") // Liên kết với bảng User qua requester_id
+          .select("requester_id, User!requester_id(uid, name, avatar)")
           .eq("receiver_id", currentUserId)
           .eq("status", "pending");
 
@@ -80,7 +103,7 @@ const UserSearchScreen = () => {
       // Lấy danh sách những người dùng hiện tại đã gửi lời mời kết bạn
       const { data: sentRequests, error: sentRequestsError } = await supabase
         .from("Friendship")
-        .select("receiver_id, User!receiver_id(uid, name, avatar)") // Liên kết với bảng User qua receiver_id
+        .select("receiver_id, User!receiver_id(uid, name, avatar)")
         .eq("requester_id", currentUserId)
         .eq("status", "pending");
 
@@ -110,46 +133,40 @@ const UserSearchScreen = () => {
         return {
           id: user.uid,
           name: user.name,
-          avatar: user.avatar || "https://via.placeholder.com/150", // Avatar mặc định nếu không có
+          avatar: user.avatar || "https://via.placeholder.com/150",
           relationship: isFriend
             ? "friend"
             : isPending
             ? "pending"
             : isSentInvitation
             ? "sent"
-            : "none", // "none" nếu không có mối quan hệ nào
+            : "none",
         };
       });
 
       // Cập nhật danh sách người dùng lên UI
       setUsers(results);
 
-      // Lấy danh sách chỉ chứa bạn bè (status "accepted")
+      // Phân loại người dùng
       const friends = results.filter((user) => user.relationship === "friend");
-
-      // Lấy danh sách người đã gửi lời mời kết bạn đến người dùng hiện tại
       const pending = pendingRequests.map((request) => ({
         id: request.requester_id,
         name: request.User.name,
         avatar: request.User.avatar || "https://via.placeholder.com/150",
       }));
-
-      // Lấy danh sách người mà người dùng hiện tại đã gửi lời mời kết bạn
       const sent = sentRequests.map((request) => ({
         id: request.receiver_id,
         name: request.User.name,
         avatar: request.User.avatar || "https://via.placeholder.com/150",
       }));
-
-      // Lấy danh sách người không có mối quan hệ nào
       const none = results
         .filter((user) => user.relationship === "none")
-        .filter((user) => user.id !== currentUserId); // Loại bỏ người dùng hiện tại khỏi danh sách "none"
+        .filter((user) => user.id !== currentUserId);
 
       setFriendList(friends);
-      setSentInvitations(sent); // Thêm người dùng đã được gửi lời mời
-      setRequests(pending); // Những người dùng đã gửi lời mời kết bạn đến người dùng hiện tại
-      setSuggestions(none); // Bạn có thể thay đổi nếu muốn tên "suggestions" cho những người không có mối quan hệ nào
+      setSentInvitations(sent);
+      setRequests(pending);
+      setSuggestions(none);
     } catch (error) {
       console.error("Lỗi khi tìm kiếm người dùng:", error.message || error);
     }
@@ -179,6 +196,23 @@ const UserSearchScreen = () => {
         )}
         {users.length > 0 && (
           <>
+            {users.some((user) => user.relationship === "self") && (
+              <View>
+                <Text style={styles.sectionTitle}>Bạn</Text>
+                <View style={styles.requestContainer}>
+                  <Image
+                    source={{
+                      uri: userAvatar || "https://via.placeholder.com/150",
+                    }}
+                    style={styles.avatar}
+                  />
+                  <View style={styles.requestInfo}>
+                    <Text style={styles.name}>{userName}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
             {friendList.length > 0 && (
               <Text style={styles.sectionTitle}>Bạn bè</Text>
             )}
@@ -283,6 +317,26 @@ const styles = StyleSheet.create({
   noResultsText: {
     textAlign: "center",
     marginVertical: 20,
+  },
+  requestContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 10,
+  },
+  requestInfo: {
+    flex: 1,
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 

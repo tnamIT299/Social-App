@@ -1,5 +1,6 @@
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
+import { sendComment } from "../../server/CommentService";
 
 // Lấy danh sách bài viết với quyền công khai và thông tin người dùng liên quan
 export const fetchPosts = async (setPosts, setLoading, setError) => {
@@ -256,4 +257,96 @@ export const handleChangePrivacy = async (postId, newPrivacy) => {
 // Điều hướng đến màn hình chi tiết bài viết
 export const handlePostDetailScreen = (navigation, postId) => {
   navigation.navigate("PostDetailScreen", { postId });
+};
+
+// Gửi bình luận
+export const handleSendComment = async (
+  newComment,
+  postId,
+  userName,
+  userAvatar,
+  setComments,
+  setPost,
+  setNewComment
+) => {
+  // Lấy dữ liệu id người dùng
+  const userId = await getUserId();
+
+  if (!userId) {
+    //Alert.alert("Error", "User ID is not available.");
+    return;
+  }
+
+  if (newComment.trim() === "") return; // Không gửi bình luận rỗng
+
+  const commentDetails = {
+    newComment,
+    userId,
+    postId,
+  };
+
+  // Tạo bình luận tạm thời để hiển thị lên giao diện ngay lập tức
+  const tempComment = {
+    cid: Date.now(), // Sử dụng tạm thời ID để không trùng lặp
+    comment: newComment,
+    User: {
+      name: userName,
+      avatar: userAvatar || "https://via.placeholder.com/150",
+    },
+    timestamp: new Date().toISOString(),
+  };
+
+  // Thêm bình luận mới vào giao diện ngay lập tức
+  setComments((prevComments) =>
+    [tempComment, ...prevComments].sort(
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+    )
+  );
+
+  // Reset khung nhập liệu
+  setNewComment("");
+
+  try {
+    // Gửi bình luận lên Supabase
+    const success = await sendComment(commentDetails);
+
+    if (!success) {
+      //Alert.alert("Error", "Lỗi khi gửi bình luận");
+    } else {
+      // Tăng số lượng bình luận
+      await incrementCommentCount(postId);
+
+      // Cập nhật số lượng bình luận mới trên bài đăng
+      setPost((prevPost) => ({
+        ...prevPost,
+        pcomment: prevPost.pcomment + 1,
+      }));
+    }
+  } catch (error) {
+    console.error("Error sending comment:", error.message);
+  }
+};
+
+// Tăng số lượng bình luận
+const incrementCommentCount = async (postId) => {
+  try {
+    const { data: post, error: postError } = await supabase
+      .from("Post")
+      .select("pcomment")
+      .eq("pid", postId)
+      .single();
+
+    if (postError) throw postError;
+
+    const newCommentCount = post.pcomment + 1;
+
+    const { error } = await supabase
+      .from("Post")
+      .update({ pcomment: newCommentCount })
+      .eq("pid", postId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error updating comment count:", error.message);
+  }
 };
