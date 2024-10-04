@@ -94,12 +94,12 @@ const PostDetailScreen = () => {
         const sortedComments = commentsData.sort(
           (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
         );
+        setComments(sortedComments);
 
         setPost({
           ...postData,
           likedByUser, // Include likedByUser status
         });
-        setComments(sortedComments);
 
         // Lấy dữ liệu người dùng
         const name = await getUserName();
@@ -195,15 +195,33 @@ const PostDetailScreen = () => {
   };
   // Sử dụng trong component của bạn
   const handleComment = async () => {
-    await handleSendComment(
+    const updatedComments = await handleSendComment(
       newComment,
       postId,
       userName,
       userAvatar,
       setComments,
-      setPost,
       setNewComment
     );
+
+    // Cập nhật lại comments và số lượng bình luận
+    setComments((prevComments) => {
+      // Giữ nguyên bình luận cũ và thêm bình luận mới
+      return [...prevComments, updatedComments];
+    });
+
+    // Cập nhật lại số lượng bình luận trong post
+    setPost((prevPost) => {
+      if (!prevPost) {
+        console.error("Previous post is not available or invalid:", prevPost);
+        return prevPost; // Giữ nguyên giá trị cũ nếu không hợp lệ
+      }
+      return {
+        ...prevPost,
+        comments: [...(prevPost.comments || []), updatedComments], // Cập nhật lại danh sách bình luận
+        pcomment: (prevPost.pcomment || 0) + 1, // Tăng số lượng bình luận
+      };
+    });
   };
 
   useFocusEffect(

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -21,6 +21,8 @@ import {
   handlePostDetailScreen,
 } from "./PostFunctions";
 import PostOptions from "../PostScreens/PostOptions";
+import CommentSection from "./CommentSection";
+import { getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
 import Swiper from "react-native-swiper";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -42,6 +44,21 @@ const PostScreen = ({
   setError, // Thêm setError vào đây
   fetchPosts,
 }) => {
+  const [showCommentSection, setShowCommentSection] = useState(null); // Lưu trữ postId đang hiển thị bình luận
+  const [userName, setUserName] = useState("");
+  const [userAvatar, setUserAvatar] = useState("");
+
+  const toggleCommentSection = async (postId) => {
+    setShowCommentSection((prevPostId) =>
+      prevPostId === postId ? null : postId
+    );
+    // Lấy dữ liệu người dùng
+    const name = await getUserName();
+    const avatar = await getUserAvatar();
+    setUserName(name);
+    setUserAvatar(avatar);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {loading ? (
@@ -175,7 +192,7 @@ const PostScreen = ({
                       </Text>
                       <TouchableOpacity
                         style={styles.actionButton}
-                        // onPress={handleComment} // Thêm logic bình luận nếu cần
+                        onPress={() => toggleCommentSection(post.pid)} // Thêm logic bình luận nếu cần
                       >
                         <Ionicons
                           name="chatbubble-outline"
@@ -200,6 +217,36 @@ const PostScreen = ({
                       </TouchableOpacity>
                     </View>
                   </View>
+                  {showCommentSection === post.pid && (
+                    <CommentSection
+                      key={`comment-section-${post.pid}`}
+                      postId={post.pid}
+                      initialComments={post.comments || []} // Đảm bảo comments luôn là một mảng
+                      setComments={(updatedComments) => {
+                        setPosts((prevPosts) => {
+                          if (!prevPosts || !Array.isArray(prevPosts)) {
+                            console.error(
+                              "Previous posts are not available or invalid:",
+                              prevPosts
+                            );
+                            return prevPosts; // Giữ nguyên giá trị cũ nếu không hợp lệ
+                          }
+                          return prevPosts.map((item) =>
+                            item.pid === post.pid
+                              ? {
+                                  ...item,
+                                  comments: updatedComments,
+                                  pcomment: item.pcomment + 1,
+                                }
+                              : item
+                          );
+                        });
+                      }}
+                      userName={userName} // Nếu cần truyền tên người dùng
+                      userAvatar={userAvatar} // Nếu cần truyền avatar của người dùng
+                      navigation={navigation}
+                    />
+                  )}
                 </View>
               );
             })}

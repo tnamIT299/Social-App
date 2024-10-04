@@ -26,7 +26,7 @@ dayjs.locale("vi");
 const HomeScreen = () => {
   const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [isSearchModalVisible, setSearchModalVisible] = useState(false);
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState("");

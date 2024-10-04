@@ -3,14 +3,23 @@ import { supabase } from "../data/supabaseClient";
 export const sendComment = async (commentDetails) => {
   const { newComment, userId, postId } = commentDetails;
 
+  // Kiểm tra xem các giá trị cần thiết có hợp lệ không
+  if (!newComment || !userId || !postId) {
+    console.error("Các thông tin cần thiết không hợp lệ:", commentDetails);
+    return false;
+  }
+
   try {
     const comment = {
-      cid: generateUniqueId(),
+      cid: generateUniqueId(), // Thay thế bằng hàm tạo ID duy nhất của bạn
       comment: newComment,
-      timestamp: getLocalISOString(),
+      timestamp: getLocalISOString(), // Kiểm tra xem hàm này trả về định dạng thời gian chính xác không
       uid: userId,
       pid: postId,
     };
+
+    // Log thông tin bình luận trước khi gửi
+    console.log("Comment to be sent:", comment);
 
     const { data, error } = await supabase.from("Comment").insert([comment]);
 
@@ -18,10 +27,10 @@ export const sendComment = async (commentDetails) => {
       throw error;
     }
 
-    return true; // Thành công
+    return { success: true, cid: comment.cid }; // Thành công và trả về ID của bình luận
   } catch (error) {
     console.error("Error creating post:", error.message);
-    return false;
+    return false; // Trả về false nếu có lỗi
   }
 };
 

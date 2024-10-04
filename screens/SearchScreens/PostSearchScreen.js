@@ -48,11 +48,12 @@ const PostSearchScreen = () => {
         return;
       }
 
-      const Id = await getUserId();
-      setUserId(Id);
+      const userId = await getUserId();
+      setUserId(userId);
 
       const updatedPosts = await Promise.all(
         postsData.map(async (post) => {
+          // Lấy thông tin người dùng
           const { data: userData, error: userError } = await supabase
             .from("User")
             .select("uid, name, avatar")
@@ -61,6 +62,7 @@ const PostSearchScreen = () => {
 
           if (userError) throw new Error(userError.message);
 
+          // Lấy trạng thái thích của người dùng
           const { data: likeData, error: likeError } = await supabase
             .from("Like")
             .select("status")
@@ -72,15 +74,29 @@ const PostSearchScreen = () => {
 
           const likedByUser = likeData ? likeData.status : false;
 
+          // Lấy bình luận cho bài viết
+          const { data: commentsData, error: commentsError } = await supabase
+            .from("Comment")
+            .select("*, User(name, avatar)") // Join để lấy thông tin người dùng
+            .eq("pid", post.pid);
+
+          if (commentsError) throw new Error(commentsError.message);
+
+          // Sắp xếp bình luận theo thứ tự thời gian giảm dần
+          const sortedComments = (commentsData || []).sort(
+            (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+          );
+
           return {
             ...post,
             user: userData,
             likedByUser,
+            comments: sortedComments,
           };
         })
       );
 
-      // Sắp xếp bài viết theo ngày tạo
+      // Sắp xếp các bài viết theo thời gian tạo
       const sortedPosts = updatedPosts.sort(
         (a, b) => new Date(b.createdat) - new Date(a.createdat)
       );

@@ -6,6 +6,7 @@ import { sendComment } from "../../server/CommentService";
 export const fetchPosts = async (setPosts, setLoading, setError) => {
   setLoading(true);
   try {
+    // Lấy danh sách bài viết với quyền truy cập là "cộng đồng"
     const { data: postsData, error: postsError } = await supabase
       .from("Post")
       .select("*")
@@ -21,35 +22,55 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
 
     const userId = await getUserId();
 
+    // Lấy danh sách người dùng, lượt thích và bình luận cho tất cả bài viết
     const updatedPosts = await Promise.all(
       postsData.map(async (post) => {
-        const { data: userData, error: userError } = await supabase
+        const userPromise = supabase
           .from("User")
           .select("uid, name, avatar")
           .eq("uid", post.uid)
           .single();
 
-        if (userError) throw new Error(userError.message);
-
-        const { data: likeData, error: likeError } = await supabase
+        const likePromise = supabase
           .from("Like")
           .select("status")
           .eq("post_id", post.pid)
           .eq("user_id", userId)
           .maybeSingle();
 
-        if (likeError) throw new Error(likeError.message);
+        const commentsPromise = supabase
+          .from("Comment")
+          .select("*, User(name, avatar)") // Join để lấy thông tin người dùng
+          .eq("pid", post.pid);
 
-        const likedByUser = likeData ? likeData.status : false;
+        const [userData, likeData, commentsData] = await Promise.all([
+          userPromise,
+          likePromise,
+          commentsPromise,
+        ]);
+
+        // Xử lý lỗi từ các yêu cầu
+        if (userData.error) throw new Error(userData.error.message);
+        if (likeData.error) throw new Error(likeData.error.message);
+        if (commentsData.error) throw new Error(commentsData.error.message);
+
+        const likedByUser = likeData.data ? likeData.data.status : false;
+
+        // Sắp xếp bình luận theo thứ tự thời gian giảm dần
+        const sortedComments = (commentsData.data || []).sort(
+          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+        );
 
         return {
           ...post,
-          user: userData,
+          user: userData.data,
           likedByUser,
+          comments: sortedComments,
         };
       })
     );
 
+    // Sắp xếp các bài viết theo thời gian tạo
     const sortedPosts = updatedPosts.sort(
       (a, b) => new Date(b.createdat) - new Date(a.createdat)
     );
@@ -201,7 +222,6 @@ export const handleEditPost = (
 };
 
 // Xử lý xóa bài viết
-// Xử lý xóa bài viết
 export const handleDeletePost = async (postId, setPosts, setLoading) => {
   console.log("Xóa bài viết:", postId);
   setLoading(true); // Bắt đầu trạng thái loading
@@ -266,24 +286,17 @@ export const handleSendComment = async (
   userName,
   userAvatar,
   setComments,
-  setPost,
   setNewComment
 ) => {
   // Lấy dữ liệu id người dùng
   const userId = await getUserId();
 
   if (!userId) {
-    //Alert.alert("Error", "User ID is not available.");
+    console.error("User ID is not available.");
     return;
   }
 
   if (newComment.trim() === "") return; // Không gửi bình luận rỗng
-
-  const commentDetails = {
-    newComment,
-    userId,
-    postId,
-  };
 
   // Tạo bình luận tạm thời để hiển thị lên giao diện ngay lập tức
   const tempComment = {
@@ -308,22 +321,37 @@ export const handleSendComment = async (
 
   try {
     // Gửi bình luận lên Supabase
-    const success = await sendComment(commentDetails);
+    const success = await sendComment({
+      newComment,
+      userId,
+      postId,
+    });
 
     if (!success) {
-      //Alert.alert("Error", "Lỗi khi gửi bình luận");
+      // Nếu việc gửi thất bại, bạn có thể cảnh báo và xoá bình luận tạm thời khỏi giao diện
+      console.error("Lỗi khi gửi bình luận lên máy chủ.");
+      setComments((prevComments) =>
+        prevComments.filter((comment) => comment.cid !== tempComment.cid)
+      );
+      return null; // Trả về null nếu không gửi được bình luận
     } else {
       // Tăng số lượng bình luận
       await incrementCommentCount(postId);
 
-      // Cập nhật số lượng bình luận mới trên bài đăng
-      setPost((prevPost) => ({
-        ...prevPost,
-        pcomment: prevPost.pcomment + 1,
-      }));
+      // Trả về bình luận đã gửi thành công
+      return {
+        ...tempComment,
+        cid: success.cid, // Cập nhật ID thật nếu cần thiết
+      };
     }
   } catch (error) {
     console.error("Error sending comment:", error.message);
+
+    // Nếu có lỗi, xóa bình luận tạm thời khỏi giao diện
+    setComments((prevComments) =>
+      prevComments.filter((comment) => comment.cid !== tempComment.cid)
+    );
+    return null; // Trả về null nếu có lỗi xảy ra
   }
 };
 
