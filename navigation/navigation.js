@@ -16,6 +16,7 @@ import {
   DetailProductPost,
   EditProductPostScreen,
 } from "../screens/ProductScreens";
+import { Message } from "../screens/Chat";
 const Stack = createStackNavigator();
 
 function Navigation() {
@@ -51,6 +52,9 @@ function Navigation() {
           name="EditProductPostScreen"
           component={EditProductPostScreen}
         />
+
+        {/*Chat Screen*/}
+        <Stack.Screen name="Message" component={Message} />
       </Stack.Navigator>
     </NavigationContainer>
   );

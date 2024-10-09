@@ -22,6 +22,7 @@ import { getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
+import { name } from "dayjs/locale/vi";
 const { width: screenWidth } = Dimensions.get("window");
 
 dayjs.extend(relativeTime);
@@ -36,6 +37,9 @@ const DetailProductPost = () => {
   const [userId, setUserId] = useState(null);
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
+  const [sellerName, setSellerName] = useState("");
+  const [sellerUid, setSellerUid] = useState("");
+  const [sellerAvatar, setSellerAvatar] = useState("");
   const navigation = useNavigation();
 
   const fetchProduct = async () => {
@@ -61,6 +65,9 @@ const DetailProductPost = () => {
           throw productpostError;
         }
         setProduct(productpostData);
+        setSellerUid(productpostData.User.uid);
+        setSellerName(productpostData.User.name);
+        setSellerAvatar(productpostData.User.avatar);
 
         //Lấy dữ liệu người dùng
         const uid = await getUserId();
@@ -76,6 +83,10 @@ const DetailProductPost = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const goToChatScreen = () => {
+    navigation.navigate('Message', {avatar:sellerAvatar, name:sellerName, uid:sellerUid});
   };
 
   useFocusEffect(
@@ -182,7 +193,7 @@ const DetailProductPost = () => {
 
         {/* Contact Button */}
         {userId !== product.User?.uid && (
-          <TouchableOpacity style={styles.contactButton}>
+          <TouchableOpacity style={styles.contactButton} onPress={goToChatScreen}>
             <Text style={styles.contactButtonText}>Chat với người bán</Text>
           </TouchableOpacity>
         )}

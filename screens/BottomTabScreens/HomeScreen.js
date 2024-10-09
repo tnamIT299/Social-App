@@ -208,7 +208,7 @@ const HomeScreen = () => {
           source={{ uri: avatarUrl || "https://via.placeholder.com/150" }}
           style={styles.avatar}
         />
-        <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
+        <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?"/>
       </View>
 
       {/* Post cards with horizontal ScrollView */}
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   },
   menuContainer: {
     position: "absolute",
-    right: 0,
+    right: 50,
     top: 50,
     backgroundColor: "#fff",
     borderRadius: 10,
