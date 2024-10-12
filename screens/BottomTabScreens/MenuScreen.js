@@ -1,10 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView,Alert } from 'react-native';
 import { Ionicons, FontAwesome6, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../data/supabaseClient';
 
 const MenuScreen = ({navigation}) => {
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    const fetchUserAvatar = async () => {
+      // Fetch the current user's session
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error("Error fetching user:", userError);
+        return;
+      }
+
+      if (user) {
+        const { data, error } = await supabase
+          .from('User')
+          .select('avatar, name')
+          .eq('uid', user.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching user data: ", error);
+        } else {
+          setUsername(data.name); // Save username in state
+          setAvatarUrl(data.avatar); // Save avatar URL in state
+        }
+      }
+    };
+    fetchUserAvatar();
+  }, []);
+
+
   const handleSignOut = () => {
     Alert.alert(
       "Xác nhận đăng xuất",
@@ -18,10 +53,36 @@ const MenuScreen = ({navigation}) => {
           text: "Đăng xuất",
           onPress: async () => {
             try {
-              // Gọi phương thức signOut từ Supabase
-              await supabase.auth.signOut();
-              Alert.alert("Đăng xuất thành công");
-              navigation.navigate('Login');
+              // Lấy thông tin người dùng hiện tại từ Supabase
+              const {
+                data: { user },
+                error: fetchUserError,
+              } = await supabase.auth.getUser();
+  
+              if (fetchUserError) {
+                Alert.alert("Có lỗi xảy ra", fetchUserError.message);
+                return;
+              }
+  
+              if (user) {
+                // Xóa giá trị currentDevice trong bảng User
+                const { error: updateError } = await supabase
+                  .from('User')
+                  .update({ currentDevice: null })
+                  .eq('uid', user.id);
+  
+                if (updateError) {
+                  Alert.alert("Có lỗi khi cập nhật thiết bị", updateError.message);
+                  return;
+                }
+  
+                // Gọi phương thức signOut từ Supabase để đăng xuất người dùng
+                await supabase.auth.signOut();
+                Alert.alert("Đăng xuất thành công");
+  
+                // Điều hướng về màn hình đăng nhập
+                navigation.navigate('Login');
+              }
             } catch (error) {
               Alert.alert("Có lỗi xảy ra", error.message);
             }
@@ -30,6 +91,8 @@ const MenuScreen = ({navigation}) => {
       ]
     );
   };
+  
+  
 
 
   return (
@@ -40,10 +103,12 @@ const MenuScreen = ({navigation}) => {
         {/* Thông tin người dùng */}
         <TouchableOpacity style={styles.userInfo}>
           <Image
-            source={{ uri: 'https://via.placeholder.com/50' }} // URL của ảnh đại diện
+           source={{
+            uri: avatarUrl || "https://via.placeholder.com/150",
+          }}
             style={styles.userImage}
           />
-          <Text style={styles.userName}>Username</Text>
+          <Text style={styles.userName}>{username}</Text>
         </TouchableOpacity>
         <ScrollView>
         {/* Danh sách mục menu */}

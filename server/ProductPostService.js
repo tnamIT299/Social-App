@@ -1,8 +1,9 @@
 import { supabase } from "../data/supabaseClient";
 import * as FileSystem from "expo-file-system";
+import { Alert } from 'react-native';
 
-export const createPost = async (postDetails) => {
-  const { title, desc, imageUris, userId } = postDetails;
+export const createProductPost = async (productPostDetails) => {
+  const { title, price, desc,status, imageUris,category, userId } = productPostDetails;
 
   try {
     let imageUrls = []; // Mảng để lưu URL của các ảnh
@@ -13,7 +14,7 @@ export const createPost = async (postDetails) => {
         const fileInfo = await FileSystem.getInfoAsync(imageUri);
         if (!fileInfo.exists) throw new Error("File không tồn tại.");
 
-        const fileName = `Image_Post/${Date.now()}_${fileNameFromUri(
+        const fileName = `Post_Product_Image/${Date.now()}_${fileNameFromUri(
           imageUri
         )}`;
 
@@ -50,23 +51,19 @@ export const createPost = async (postDetails) => {
       }
     }
 
-    const post = {
-      pid: generateUniqueId(),
-      ptitle: title || "",
-      pdesc: desc || "",
-      pimage: JSON.stringify(imageUrls), // Lưu các URL dưới dạng chuỗi JSON
-      pvideo: "",
-      plike: 0,
-      pcomment: 0,
-      pshare: 0,
-      permission: "cộng đồng",
+    const product_post = {
+      productid: generateUniqueId(),
+      productname: title || "",
+      productprice: price || "",
+      productdesc: desc || "",
+      productimage: JSON.stringify(imageUrls),
+      productcategory:category || "",
+      productstatus: status || "",
       uid: userId || "",
-      createdat: getLocalISOString(),
+      timestamp: getLocalISOString(),
     };
 
-    console.log("Đang thêm bài viết vào cơ sở dữ liệu:", post);
-
-    const { data, error } = await supabase.from("Post").insert([post]);
+    const { data, error } = await supabase.from("ProductPost").insert([product_post]);
 
     if (error) throw error;
 
@@ -77,8 +74,8 @@ export const createPost = async (postDetails) => {
   }
 };
 
-export const editPost = async (postDetails) => {
-  const { id, desc, imageUris, userId } = postDetails; // imageUris là mảng URI của các ảnh
+export const editProductPost = async (productPostDetails) => {
+  const { id,title, price, desc,status, imageUris,category, userId } = productPostDetails;
 
   try {
     let imageUrls = []; // Mảng chứa URL ảnh
@@ -94,7 +91,7 @@ export const editPost = async (postDetails) => {
           const fileInfo = await FileSystem.getInfoAsync(imageUri);
           if (!fileInfo.exists) throw new Error("File không tồn tại.");
 
-          const fileName = `Image_Post/${Date.now()}_${fileNameFromUri(
+          const fileName = `Post_Product_Image/${Date.now()}_${fileNameFromUri(
             imageUri
           )}`;
 
@@ -133,17 +130,21 @@ export const editPost = async (postDetails) => {
       }
     }
 
-    const postUpdate = {
-      pdesc: desc || "",
-      pimage: JSON.stringify(imageUrls), // Lưu URL ảnh dưới dạng chuỗi JSON
+    const productPostUpdate = {
+      productname: title || "",
+      productprice: price || "",
+      productdesc: desc || "",
+      productimage: JSON.stringify(imageUrls),
+      productcategory:category || "",
+      productstatus: status || "",
       uid: userId || "",
-      createdat: getLocalISOString(),
+      timestamp: getLocalISOString(),
     };
 
     const { data, error } = await supabase
-      .from("Post")
-      .update(postUpdate)
-      .eq("pid", id);
+      .from("ProductPost")
+      .update(productPostUpdate)
+      .eq("productid", id);
 
     if (error) throw error;
 
@@ -152,6 +153,46 @@ export const editPost = async (postDetails) => {
     console.error("Lỗi chỉnh sửa bài viết:", error);
     return false;
   }
+};
+
+export const deleteProductPost = async (productId, fetchProducts) => {
+  Alert.alert(
+    "Xác nhận xóa",
+    "Bạn có chắc chắn muốn xóa sản phẩm này không?",
+    [
+      {
+        text: "Hủy",
+        style: "cancel",
+      },
+      {
+        text: "Đồng ý",
+        onPress: async () => {
+          const { data, error } = await supabase
+            .from("ProductPost")
+            .delete()
+            .eq("productid", productId);
+
+          if (error) {
+            console.log("Lỗi khi xóa sản phẩm:", error);
+          } else {
+            Alert.alert(
+              "Thông báo",
+              "Xóa sản phẩm thành công!", 
+              [
+                {
+                  text: "OK", 
+                },
+              ]
+            );
+            if (fetchProducts) {
+              fetchProducts();
+            }
+          }
+        },
+      },
+    ],
+    { cancelable: true }
+  );
 };
 
 // Hàm lấy tên tệp từ URI
