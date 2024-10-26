@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, TouchableOpacity, Text, Image, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, TouchableOpacity, Text, Image, StyleSheet, ActivityIndicator, Modal, Dimensions } from 'react-native';
+import { useNavigation, useRoute, useFocusEffect  } from '@react-navigation/native';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../data/supabaseClient';
@@ -10,7 +10,7 @@ const Profile = () => {
   const { uid } = route.params; // Lấy uid từ params
   const [username, setUsername] = useState('Loading...');
   const [avatarUrl, setAvatarUrl] = useState("https://via.placeholder.com/150");
-  const [coverUrl, setCoverUrl] = useState("https://via.placeholder.com/400x200");
+  const [coverUrl, setCoverUrl] = useState("https://via.placeholder.com/400x300");
   const [phone, setPhone] = useState('Loading...');
   const [email, setEmail] = useState('Loading...');
   const [job, setJob] = useState('Loading...');
@@ -19,82 +19,65 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [isFriend, setIsFriend] = useState(false); // Khởi tạo isFriend là false ban đầu
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
   const navigation = useNavigation();
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const { data: { user } } = await supabase.auth.getUser(); // Lấy user hiện tại
+  const fetchUserData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUserId(user.id);
 
-      setCurrentUserId(user.id); // Lưu uid của người dùng hiện tại
-      const { data, error } = await supabase
-        .from('User')
-        .select('avatar, name, cover, phone, email, job, address, workplace')
-        .eq('uid', uid)
-        .single();
-
-      if (error) {
-        console.error("Error fetching user data: ", error);
-      } else {
-        setUsername(data.name || 'Unknown User');
-        setAvatarUrl(data.avatar || "https://via.placeholder.com/150");
-        setCoverUrl(data.cover || "https://via.placeholder.com/400x200");
-        setPhone(data.phone || 'N/A');
-        setEmail(data.email || 'N/A');
-        setJob(data.job || 'N/A');
-        setAddress(data.address || 'N/A');
-        setWorkplace(data.workplace || 'N/A');
-      }
-
-      // Kiểm tra xem người dùng hiện tại có là bạn hay không
-      const { data: friendshipsByCurrentUser } = await supabase
-        .from("Friendship")
-        .select("*")
-        .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
-        .or(`requester_id.eq.${uid},receiver_id.eq.${uid}`);
-
-      if (friendshipsByCurrentUser.length > 0) {
-        setIsFriend(true);
-      }
-      setLoading(false);
-    };
-    
-    fetchUserData();
-  }, [uid]);
-
-  const handleUnfriend = async () => {
-    // Thực hiện hủy kết bạn tại đây
     const { data, error } = await supabase
-      .from("Friendship")
-      .delete()
-      .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
-      .or(`requester_id.eq.${uid},receiver_id.eq.${uid}`);
+      .from('User')
+      .select('avatar, name, cover, phone, email, job, address, workplace')
+      .eq('uid', uid)
+      .single();
 
     if (error) {
-      console.error("Error unfriending:", error);
+      console.error("Error fetching user data: ", error);
     } else {
-      setIsFriend(false);
+      setUsername(data.name || 'Unknown User');
+      setAvatarUrl(data.avatar || "https://via.placeholder.com/150");
+      setCoverUrl(data.cover || "https://via.placeholder.com/400x300");
+      setPhone(data.phone || '');
+      setEmail(data.email || '');
+      setJob(data.job || '');
+      setAddress(data.address || '');
+      setWorkplace(data.workplace || '');
     }
-    setConfirmVisible(false); // Đóng hộp thoại xác nhận
-    setDialogVisible(false); // Đóng hộp thoại chính
+
+    const { data: friendshipsByCurrentUser } = await supabase
+      .from("Friendship")
+      .select("*")
+      .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .or(`requester_id.eq.${uid},receiver_id.eq.${uid}`);
+
+    if (friendshipsByCurrentUser && friendshipsByCurrentUser.length > 0) {
+      setIsFriend(true);
+    }
+    setLoading(false);
   };
 
-  const handleUnfriendDialog = () => {
-    setConfirmVisible(true); // Mở hộp thoại xác nhận
-  };
+  useEffect(() => {
+    fetchUserData(); // Tải dữ liệu lần đầu khi trang được render
+  }, [uid]);
 
-  const renderOptions = () => {
-    return (
-      <View style={styles.optionList}>
-        <TouchableOpacity style={styles.optionButton} onPress={handleUnfriendDialog}>
-          <Text style={styles.optionText}>Hủy kết bạn</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.optionButton} onPress={() => setDialogVisible(false)}>
-          <Text style={styles.optionText}>Đóng</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserData(); // Gọi lại khi màn hình được focus
+    }, [uid])
+  );
 
+  const handleOpenModal = (event) => {
+    const { pageY, pageX } = event.nativeEvent;
+    const windowWidth = Dimensions.get('window').width;
+
+    setModalPosition({
+      top: pageY + 10,
+      right: windowWidth - pageX - 10,
+    });
+    setModalVisible(true);
+  };
   return (
     <SafeAreaView style={styles.container}>
       <TouchableOpacity
@@ -117,8 +100,44 @@ const Profile = () => {
               source={{ uri: avatarUrl }}
               style={styles.avatar}
             />
-            <Text style={styles.username}>{username}</Text>
+            <View style={styles.usernameIconContainer}>
+              {uid === currentUserId && ( // Kiểm tra xem uid có trùng với currentUserId không
+                <TouchableOpacity style={styles.iconRight} onPress={(event) => handleOpenModal(event)}>
+                  <Ionicons name="ellipsis-horizontal" size={24} backgroundcolor="black" />
+                </TouchableOpacity>
+              )}
+              <Text style={styles.username}>{username}</Text>
+            </View>
           </View>
+          {/* Options Modal */}
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={modalVisible}
+            onRequestClose={() => setModalVisible(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPressOut={() => setModalVisible(false)}
+            >
+              <View style={[styles.modalContent, { top: modalPosition.top, right: modalPosition.right }]}>
+                <TouchableOpacity style={styles.optionItem}  onPress={() => navigation.navigate('EditProfileScreen',{uid})}>
+                  <Ionicons name="create-outline" size={24} color="black" style={styles.iconButton} />
+                  <Text style={styles.optionText}>Chỉnh sửa</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.optionItem}>
+                  <Ionicons name="search-outline" size={24} color="black" style={styles.iconButton} />
+                  <Text style={styles.optionText}>Tìm kiếm</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.optionItem} onPress={() => setModalVisible(false)}>
+                  <Ionicons name="log-out-outline" size={24} color="black" style={styles.iconButton} />
+                  <Text style={styles.optionText}>Cancel</Text>
+                </TouchableOpacity>
+                {/* Add more options as needed */}
+              </View>
+            </TouchableOpacity>
+          </Modal>
           {/* Phần chứa biểu tượng */}
           {uid !== currentUserId && ( // Kiểm tra xem uid có khác với uid của người dùng hiện tại không
             <View style={styles.iconContainer}>
@@ -139,14 +158,15 @@ const Profile = () => {
               </TouchableOpacity>
             </View>
           )}
+
           <View style={styles.infoSection}>
             <Text style={styles.info}>Thông tin</Text>
             <View style={styles.infoContainer}>
-              <Text>Điện thoại: {phone}</Text>
-              <Text>Email: {email}</Text>
-              <Text>Địa chỉ: {address}</Text>
-              <Text>Công việc: {job}</Text>
-              <Text>Nơi làm việc: {workplace}</Text>
+              <Text style={styles.text}>Điện thoại: {phone}</Text>
+              <Text style={styles.text}>Email: {email}</Text>
+              <Text style={styles.text}>Địa chỉ: {address}</Text>
+              <Text style={styles.text}>Công việc: {job}</Text>
+              <Text style={styles.text}>Nơi làm việc: {workplace}</Text>
             </View>
           </View>
         </View>
@@ -174,6 +194,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
+  usernameIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center', // Center the content horizontally
+    width: '100%',
+    marginTop: 10,
+  },
+  username: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    flex: 1, // Take up remaining space
+  },
+  iconRight: {
+    position: 'absolute',
+    right: 15, // Adjust as needed for padding
+    top: 30,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    position: 'absolute',
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 10,
+    width: 150,
+    zIndex: 999, // Make sure it's on top
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+  },
+  optionText: {
+    color: 'black',
+    fontSize: 14,
+    marginLeft: 10,
+  },
   coverImage: {
     width: '100%',
     height: 200,
@@ -196,10 +257,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginTop: 30,
+    marginLeft: 10,
   },
   info: {
     fontSize: 20,
     fontWeight: 'bold',
+    marginBottom: 10,
   },
   infoSection: {
     padding: 20,
@@ -221,9 +284,9 @@ const styles = StyleSheet.create({
   optionButton: {
     paddingVertical: 10,
   },
-  optionText: {
-    fontSize: 16,
-  },
+  text:{
+    paddingBottom : 5,
+  }
 });
 
 export default Profile;

@@ -1,2 +1,6 @@
 import Profile from "./Profile";
-export { Profile}
+import EditProfileScreen from "./EditProfileScreen";
+export { 
+    Profile,
+    EditProfileScreen,
+};
