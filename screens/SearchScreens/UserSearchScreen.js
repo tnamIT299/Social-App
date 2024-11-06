@@ -221,7 +221,7 @@ const UserSearchScreen = () => {
                 key={friend.id}
                 avatar={friend.avatar}
                 name={friend.name}
-                friendId={friend.id}
+                uid={friend.id}
                 fetchFriendList={fetchUsers}
               />
             ))}

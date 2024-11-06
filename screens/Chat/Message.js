@@ -1,4 +1,4 @@
-import React, { useState, useEffect,useRef  } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -41,30 +41,29 @@ const Message = ({ route }) => {
   useEffect(() => {
     const fetchMessages = async () => {
       if (!senderId || !receiverId) return;
-  
+
       const { data, error } = await supabase
-        .from('Message')
-        .select('*')
+        .from("Message")
+        .select("*")
         .or(
           `and(sender_id.eq.${senderId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${senderId})`
         ) // Chỉ lấy tin nhắn giữa A và B hoặc B và A
-        .order('created_at', { ascending: true }); // Sắp xếp tin nhắn theo thời gian
-  
+        .order("created_at", { ascending: true }); // Sắp xếp tin nhắn theo thời gian
+
       if (error) {
         console.error("Error fetching messages:", error);
       } else {
         setMessages(data);
       }
     };
-  
+
     fetchMessages();
   }, [senderId, receiverId]);
-  
 
   // Đăng ký lắng nghe sự kiện realtime từ bảng messages
   useEffect(() => {
     if (!senderId || !receiverId) return;
-  
+
     const messageChannel = supabase
       .channel("realtime-messages")
       .on(
@@ -72,11 +71,13 @@ const Message = ({ route }) => {
         { event: "INSERT", schema: "public", table: "Message" },
         (payload) => {
           const newMessage = payload.new;
-  
+
           // Chỉ thêm tin nhắn nếu đúng cặp `sender_id` và `receiver_id`
           if (
-            (newMessage.sender_id === senderId && newMessage.receiver_id === receiverId) ||
-            (newMessage.sender_id === receiverId && newMessage.receiver_id === senderId)
+            (newMessage.sender_id === senderId &&
+              newMessage.receiver_id === receiverId) ||
+            (newMessage.sender_id === receiverId &&
+              newMessage.receiver_id === senderId)
           ) {
             setMessages((prevMessages) =>
               [...prevMessages, newMessage].sort(
@@ -89,12 +90,11 @@ const Message = ({ route }) => {
         }
       )
       .subscribe();
-  
+
     return () => {
       supabase.removeChannel(messageChannel);
     };
   }, [senderId, receiverId]);
-  
 
   // Cuộn đến cuối danh sách khi tin nhắn được tải xong lần đầu tiên
   useEffect(() => {
@@ -111,8 +111,8 @@ const Message = ({ route }) => {
   };
 
   const sendMessage = async () => {
-    if (newMessage.trim() !== '') {
-      const { error } = await supabase.from('Message').insert([
+    if (newMessage.trim() !== "") {
+      const { error } = await supabase.from("Message").insert([
         {
           sender_id: senderId, // Người gửi
           receiver_id: receiverId, // Người nhận
@@ -120,15 +120,14 @@ const Message = ({ route }) => {
           created_at: getLocalISOString(),
         },
       ]);
-  
+
       if (error) {
         console.error("Error sending message:", error);
       } else {
-        setNewMessage('');
+        setNewMessage("");
       }
     }
   };
-  
 
   const renderMessage = ({ item }) => {
     const isSender = item.sender_id === senderId;
@@ -210,12 +209,14 @@ const Message = ({ route }) => {
         </View>
 
         <FlatList
-         ref={flatListRef}
+          ref={flatListRef}
           data={messages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.id.toString()}
           style={styles.messageList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={() =>
+            flatListRef.current?.scrollToEnd({ animated: true })
+          }
         />
 
         <View style={styles.inputContainer}>
@@ -225,8 +226,12 @@ const Message = ({ route }) => {
             onChangeText={setNewMessage}
             style={styles.input}
           />
+
+          <TouchableOpacity>
+            <Icon name="add-circle" size={30} color="blue" style={styles.iconSend} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={sendMessage}>
-            <Icon name="send" size={24} color="blue" style={styles.iconSend} />
+            <Icon name="send" size={30} color="blue" style={styles.iconSend} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -342,7 +347,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 15,
     backgroundColor: "#f0f0f0",
-    marginRight: 10,
   },
   iconSend: {
     marginHorizontal: 5,
