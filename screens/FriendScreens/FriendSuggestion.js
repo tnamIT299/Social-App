@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import {
   handleSendFriendRequest,
   handleUndoAddFriend,
@@ -17,6 +18,7 @@ const FriendSuggestion = ({
   setSuggestions, // Thêm setSuggestions như là prop
 }) => {
   const [isFriendAdded, setIsFriendAdded] = useState(false);
+  const navigation = useNavigation();
 
   const handleAddFriend = async () => {
     try {
@@ -48,9 +50,15 @@ const FriendSuggestion = ({
     }
   };
 
+  const goToProfileScreen = () => {
+    navigation.navigate('Profile', { uid: receiverId }); // Truyền receiverId làm uid
+  };
+
   return (
     <View style={styles.requestContainer}>
-      <Image source={{ uri: avatar }} style={styles.avatar} />
+      <TouchableOpacity style={styles.userInfo} onPress={goToProfileScreen}>
+        <Image source={{ uri: avatar }} style={styles.avatar} />
+      </TouchableOpacity>
       <View style={styles.requestInfo}>
         <Text style={styles.name}>{name}</Text>
         <View style={styles.buttonsContainer}>

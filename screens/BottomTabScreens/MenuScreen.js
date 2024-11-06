@@ -7,6 +7,7 @@ import { supabase } from '../../data/supabaseClient';
 const MenuScreen = ({navigation}) => {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [username, setUsername] = useState("");
+  const [uid, setUid] = useState("");
 
   useEffect(() => {
     const fetchUserAvatar = async () => {
@@ -24,7 +25,7 @@ const MenuScreen = ({navigation}) => {
       if (user) {
         const { data, error } = await supabase
           .from('User')
-          .select('avatar, name')
+          .select('uid, avatar, name')
           .eq('uid', user.id)
           .single();
 
@@ -33,6 +34,7 @@ const MenuScreen = ({navigation}) => {
         } else {
           setUsername(data.name); // Save username in state
           setAvatarUrl(data.avatar); // Save avatar URL in state
+          setUid(data.uid); // Save
         }
       }
     };
@@ -101,7 +103,7 @@ const MenuScreen = ({navigation}) => {
         <Text style={styles.header}>Menu</Text>
         
         {/* Thông tin người dùng */}
-        <TouchableOpacity style={styles.userInfo}>
+        <TouchableOpacity style={styles.userInfo}  onPress={() => navigation.navigate('Profile',{uid})}>
           <Image
            source={{
             uri: avatarUrl || "https://via.placeholder.com/150",

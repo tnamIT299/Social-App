@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, Image, Button, Alert } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, Image, Button, Alert } from "react-native";
 import { handleRemoveFriend } from "./FriendFunction";
 import Message from "../Chat/Message";
 import { useNavigation } from "@react-navigation/native";
@@ -27,11 +27,16 @@ const FriendListItem = ({ avatar, name, uid, fetchFriendList }) => {
   const goToChatScreen = () => {
     navigation.navigate('Message', { avatar, name, uid });
   };
+  const goToProfileScreen = () => {
+    navigation.navigate('Profile', { uid });
+  };
 
 
   return (
     <View style={styles.requestContainer}>
-      <Image source={{ uri: avatar }} style={styles.avatar} />
+      <TouchableOpacity style={styles.userInfo} onPress={goToProfileScreen}>
+          <Image source={{ uri: avatar }} style={styles.avatar} />
+        </TouchableOpacity>
       <View style={styles.requestInfo}>
         <Text style={styles.name}>{name}</Text>
       </View>

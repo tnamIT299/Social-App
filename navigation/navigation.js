@@ -10,6 +10,7 @@ import * as Linking from "expo-linking";
 import { FriendsScreen } from "../screens/BottomTabScreens";
 import { CreatePost, EditPost, PostDetailScreen } from "../screens/PostScreens";
 import { UserSearchScreen, PostSearchScreen } from "../screens/SearchScreens";
+import { Profile, EditProfileScreen } from "../screens/ProfileScreens";
 import {
   AddProductScreen,
   MyListProductPost,
@@ -52,6 +53,9 @@ function Navigation() {
           name="EditProductPostScreen"
           component={EditProductPostScreen}
         />
+        {/*Profile Screen*/}
+        <Stack.Screen name="Profile" component={Profile} />
+        <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
 
         {/*Chat Screen*/}
         <Stack.Screen name="Message" component={Message} />
