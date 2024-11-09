@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import {
   handleSendFriendRequest,
@@ -13,9 +20,9 @@ const FriendSuggestion = ({
   receiverId,
   fetchSuggestions,
   fetchSentInvitations,
-  userId, // Thêm userId như là prop
-  suggestions, // Thêm suggestions như là prop
-  setSuggestions, // Thêm setSuggestions như là prop
+  userId,
+  suggestions,
+  setSuggestions, 
 }) => {
   const [isFriendAdded, setIsFriendAdded] = useState(false);
   const navigation = useNavigation();
@@ -27,7 +34,7 @@ const FriendSuggestion = ({
         fetchSuggestions,
         fetchSentInvitations
       );
-      setIsFriendAdded(true); // Chuyển sang nút Hoàn tác
+      setIsFriendAdded(true);
     } catch (error) {
       console.error("Lỗi khi thêm bạn:", error);
     }
@@ -36,7 +43,7 @@ const FriendSuggestion = ({
   const handleUndo = async () => {
     try {
       await handleUndoAddFriend(receiverId, suggestions, setSuggestions);
-      setIsFriendAdded(false); // Chuyển lại về nút Thêm/Ẩn
+      setIsFriendAdded(false);
     } catch (error) {
       console.error("Lỗi khi hoàn tác thêm bạn:", error);
     }
@@ -51,39 +58,46 @@ const FriendSuggestion = ({
   };
 
   const goToProfileScreen = () => {
-    navigation.navigate('Profile', { uid: receiverId }); // Truyền receiverId làm uid
+    navigation.navigate("Profile", {
+      screen: "ProfileTab", // Tên tab bạn muốn điều hướng đến
+      params: {
+        userId: receiverId, 
+      },
+    })
   };
 
   return (
-    <View style={styles.requestContainer}>
-      <TouchableOpacity style={styles.userInfo} onPress={goToProfileScreen}>
-        <Image source={{ uri: avatar }} style={styles.avatar} />
-      </TouchableOpacity>
-      <View style={styles.requestInfo}>
-        <Text style={styles.name}>{name}</Text>
-        <View style={styles.buttonsContainer}>
-          {isFriendAdded ? (
-            <TouchableOpacity style={styles.undoButton} onPress={handleUndo}>
-              <Text style={styles.buttonText}>Hoàn tác</Text>
-            </TouchableOpacity>
-          ) : (
-            <>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={handleAddFriend}
-              >
-                <Text style={styles.buttonText}>Thêm bạn bè</Text>
+    <View style={{marginBottom:15}}>
+      <ScrollView contentContainerStyle={styles.requestContainer}>
+        <TouchableOpacity style={styles.userInfo} onPress={goToProfileScreen}>
+          <Image source={{ uri: avatar }} style={styles.avatar} />
+        </TouchableOpacity>
+        <View style={styles.requestInfo}>
+          <Text style={styles.name}>{name}</Text>
+          <View style={styles.buttonsContainer}>
+            {isFriendAdded ? (
+              <TouchableOpacity style={styles.undoButton} onPress={handleUndo}>
+                <Text style={styles.buttonText}>Hoàn tác</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={handleRemove}
-              >
-                <Text style={styles.buttonText}>Ẩn</Text>
-              </TouchableOpacity>
-            </>
-          )}
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={handleAddFriend}
+                >
+                  <Text style={styles.buttonText}>Thêm bạn bè</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={handleRemove}
+                >
+                  <Text style={styles.buttonText}>Ẩn</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 };
@@ -98,6 +112,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 10,
+    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
   },

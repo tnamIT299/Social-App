@@ -18,6 +18,7 @@ import {
   EditProductPostScreen,
 } from "../screens/ProductScreens";
 import { Message } from "../screens/Chat";
+import { Account,ChangePassword } from "../screens/Account";
 const Stack = createStackNavigator();
 
 function Navigation() {
@@ -32,6 +33,10 @@ function Navigation() {
         <Stack.Screen name="SignUp" component={SignUp} />
         <Stack.Screen name="ForgetPassword" component={ForgetPassword} />
         <Stack.Screen name="TabNavigation" component={TabNavigation} />
+
+        {/*Account Screen*/}
+        <Stack.Screen name="Account" component={Account} />
+        <Stack.Screen name="ChangePassword" component={ChangePassword} />
 
         {/*Post Screen*/}
         <Stack.Screen name="CreatePost" component={CreatePost} />

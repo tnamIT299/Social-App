@@ -3,11 +3,13 @@ import { View, TouchableOpacity, Text, Image, StyleSheet, ActivityIndicator, Mod
 import { useNavigation, useRoute, useFocusEffect  } from '@react-navigation/native';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from '@expo/vector-icons';
+import Icon from "react-native-vector-icons/Ionicons";
 import { supabase } from '../../data/supabaseClient';
-
-const Profile = () => {
+import { createStackNavigator } from "@react-navigation/stack";
+const Stack = createStackNavigator();
+const ProfileTab = () => {
   const route = useRoute();
-  const { uid } = route.params; // Lấy uid từ params
+  const { userId } = route.params; // Lấy uid từ params
   const [username, setUsername] = useState('Loading...');
   const [avatarUrl, setAvatarUrl] = useState("https://via.placeholder.com/150");
   const [coverUrl, setCoverUrl] = useState("https://via.placeholder.com/400x300");
@@ -30,7 +32,7 @@ const Profile = () => {
     const { data, error } = await supabase
       .from('User')
       .select('avatar, name, cover, phone, email, job, address, workplace')
-      .eq('uid', uid)
+      .eq('uid', userId)
       .single();
 
     if (error) {
@@ -50,7 +52,7 @@ const Profile = () => {
       .from("Friendship")
       .select("*")
       .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
-      .or(`requester_id.eq.${uid},receiver_id.eq.${uid}`);
+      .or(`requester_id.eq.${userId},receiver_id.eq.${userId}`);
 
     if (friendshipsByCurrentUser && friendshipsByCurrentUser.length > 0) {
       setIsFriend(true);
@@ -60,12 +62,12 @@ const Profile = () => {
 
   useEffect(() => {
     fetchUserData(); // Tải dữ liệu lần đầu khi trang được render
-  }, [uid]);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
       fetchUserData(); // Gọi lại khi màn hình được focus
-    }, [uid])
+    }, [userId])
   );
 
   const handleOpenModal = (event) => {
@@ -80,13 +82,6 @@ const Profile = () => {
   };
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity
-        style={styles.headerBack}
-        onPress={() => navigation.goBack()}
-      >
-        <Ionicons name="chevron-back-outline" size={25} color="black" />
-      </TouchableOpacity>
-
       {loading ? (
         <ActivityIndicator size="large" color="#0000ff" />
       ) : (
@@ -101,7 +96,7 @@ const Profile = () => {
               style={styles.avatar}
             />
             <View style={styles.usernameIconContainer}>
-              {uid === currentUserId && ( // Kiểm tra xem uid có trùng với currentUserId không
+              {userId === currentUserId && ( // Kiểm tra xem uid có trùng với currentUserId không
                 <TouchableOpacity style={styles.iconRight} onPress={(event) => handleOpenModal(event)}>
                   <Ionicons name="ellipsis-horizontal" size={24} backgroundcolor="black" />
                 </TouchableOpacity>
@@ -139,7 +134,7 @@ const Profile = () => {
             </TouchableOpacity>
           </Modal>
           {/* Phần chứa biểu tượng */}
-          {uid !== currentUserId && ( // Kiểm tra xem uid có khác với uid của người dùng hiện tại không
+          {userId !== currentUserId && ( // Kiểm tra xem uid có khác với uid của người dùng hiện tại không
             <View style={styles.iconContainer}>
               {isFriend ? ( // Kiểm tra xem đã kết bạn chưa
                 <TouchableOpacity style={styles.iconButton}>
@@ -176,12 +171,37 @@ const Profile = () => {
   );
 };
 
+const ProfileStack = ({ navigation }) => {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="ProfileTab"
+        component={ProfileTab}
+        options={({ navigation }) => ({
+          headerTitle: "Trang cá nhân",
+          headerTitleAlign: "center",
+          headerStyle: { backgroundColor: "#2F95DC" },
+          headerTintColor: "#FFFFFF",
+          headerTitleStyle: { fontWeight: "bold" },
+          headerLeft: () => (
+            <Icon
+              name="chevron-back-outline"
+              size={20}
+              onPress={() => navigation.goBack()}
+              style={{ color: "#FFFFFF", marginLeft: 20 }}
+            ></Icon>
+          ),
+        })}
+      />
+    </Stack.Navigator>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    padding: 15,
-    marginBottom: 70,
+    padding: 10,
   },
   headerBack: {
     marginTop: 10,
@@ -289,4 +309,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default Profile;
+export default ProfileStack;
