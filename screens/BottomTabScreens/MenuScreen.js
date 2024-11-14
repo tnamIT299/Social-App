@@ -19,7 +19,6 @@ const MenuScreen = ({ navigation }) => {
 
   useEffect(() => {
     const fetchUserAvatar = async () => {
-      // Fetch the current user's session
       const {
         data: { user },
         error: userError,
@@ -40,14 +39,20 @@ const MenuScreen = ({ navigation }) => {
         if (error) {
           console.error("Error fetching user data: ", error);
         } else {
-          setUsername(data.name); // Save username in state
-          setAvatarUrl(data.avatar); // Save avatar URL in state
-          setUid(data.uid); // Save
+          setUsername(data.name);
+          setAvatarUrl(data.avatar);
+          setUid(data.uid);
         }
       }
     };
     fetchUserAvatar();
   }, []);
+
+  const getLocalISOString = () => {
+    const localTimeOffset = 7 * 60 * 60 * 1000;
+    const localDate = new Date(new Date().getTime() + localTimeOffset);
+    return localDate.toISOString();
+  };
 
   const handleAccount = () => {
     navigation.navigate("Account", { username, avatarUrl });
@@ -63,7 +68,6 @@ const MenuScreen = ({ navigation }) => {
         text: "Đăng xuất",
         onPress: async () => {
           try {
-            // Lấy thông tin người dùng hiện tại từ Supabase
             const {
               data: { user },
               error: fetchUserError,
@@ -75,25 +79,26 @@ const MenuScreen = ({ navigation }) => {
             }
 
             if (user) {
-              // Xóa giá trị currentDevice trong bảng User
               const { error: updateError } = await supabase
                 .from("User")
-                .update({ currentDevice: null })
+                .update({
+                  onlinestatus: null,
+                  currentDevice: null,
+                  lastOnline: getLocalISOString(),
+                })
                 .eq("uid", user.id);
 
               if (updateError) {
                 Alert.alert(
-                  "Có lỗi khi cập nhật thiết bị",
+                  "Có lỗi khi cập nhật thông tin người dùng",
                   updateError.message
                 );
                 return;
               }
 
-              // Gọi phương thức signOut từ Supabase để đăng xuất người dùng
               await supabase.auth.signOut();
               Alert.alert("Đăng xuất thành công");
 
-              // Điều hướng về màn hình đăng nhập
               navigation.navigate("Login");
             }
           } catch (error) {
@@ -114,9 +119,9 @@ const MenuScreen = ({ navigation }) => {
         style={styles.userInfo}
         onPress={() =>
           navigation.navigate("Profile", {
-            screen: "ProfileTab", // Tên tab bạn muốn điều hướng đến
+            screen: "ProfileTab",
             params: {
-              userId: uid, 
+              userId: uid,
             },
           })
         }

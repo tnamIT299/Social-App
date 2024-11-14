@@ -5,27 +5,34 @@ import {
   Image,
   TextInput,
   FlatList,
-  StyleSheet,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  ScrollView
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
+import * as ImagePicker from "expo-image-picker";
+import styles from "./style";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
+dayjs.extend(relativeTime);
+dayjs.locale("vi");
 
 const Message = ({ route }) => {
   const navigation = useNavigation();
   const { avatar, name, uid } = route.params;
   const [senderId, setSenderId] = useState("");
+  const [lastOnline, setLastOnline] = useState(null);
   const [receiverId, setReceiverId] = useState(uid);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [selectedImages, setSelectedImages] = useState([]);
   const flatListRef = useRef(null);
 
   // Lấy senderId từ getUserId khi component mount
@@ -36,6 +43,25 @@ const Message = ({ route }) => {
     };
     fetchUserId();
   }, []);
+
+  // Lấy lastOnline từ receiverId khi component mount
+  useEffect(() => {
+    const fetchLastOnline = async () => {
+      const { data, error } = await supabase
+        .from("User") // giả sử bảng của bạn là User
+        .select("lastOnline")
+        .eq("uid", uid)
+        .single();
+
+      if (error) {
+        console.error("Error fetching last online:", error);
+      } else {
+        setLastOnline(data?.lastOnline);
+      }
+    };
+
+    fetchLastOnline();
+  }, [uid]);
 
   // Fetch messages khi senderId hoặc receiverId thay đổi
   useEffect(() => {
@@ -110,13 +136,79 @@ const Message = ({ route }) => {
     return localDate.toISOString();
   };
 
-  const sendMessage = async () => {
+  const pickImage = async () => {
+    const options = [
+      { text: "Chọn Thư viện", onPress: () => launchGallery() },
+      { text: "Chụp ảnh", onPress: () => launchCamera() },
+      { text: "Hủy", onPress: () => {}, style: "cancel" },
+    ];
+
+    Alert.alert("Chọn ảnh", "Bạn muốn chọn ảnh từ đâu?", options);
+  };
+
+  const launchGallery = async () => {
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      alert("Permission to access camera roll is required!");
+      return;
+    }
+
+    let pickerResult = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!pickerResult.canceled && pickerResult.assets.length > 0) {
+      // Thêm ảnh mới vào mảng selectedImages
+      setSelectedImages([...selectedImages, pickerResult.assets[0].uri]);
+    } else {
+      console.log("No image selected or picker was canceled");
+    }
+  };
+
+  const launchCamera = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      alert("Permission to access camera is required!");
+      return;
+    }
+
+    let cameraResult = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!cameraResult.canceled && cameraResult.assets.length > 0) {
+      // Thêm ảnh mới vào mảng selectedImages
+      setSelectedImages([...selectedImages, cameraResult.assets[0].uri]);
+    } else {
+      console.log("No image taken or camera was canceled");
+    }
+  };
+
+  const removeImage = (uri) => {
+    // Hàm để xóa ảnh khỏi danh sách selectedImages
+    const filteredImages = selectedImages.filter(
+      (imageUri) => imageUri !== uri
+    );
+    setSelectedImages(filteredImages);
+  };
+
+  const removeAllImages = () => {
+    setSelectedImages([]); // Làm trống danh sách ảnh
+  };
+
+  const sendMessage = async (imageUrl) => {
     if (newMessage.trim() !== "") {
       const { error } = await supabase.from("Message").insert([
         {
-          sender_id: senderId, // Người gửi
-          receiver_id: receiverId, // Người nhận
-          content: newMessage,
+          sender_id: senderId,
+          receiver_id: receiverId,
+          content: newMessage || "",
+          image_url: imageUrl,
           created_at: getLocalISOString(),
         },
       ]);
@@ -155,14 +247,22 @@ const Message = ({ route }) => {
               isSender ? styles.senderBubble : styles.receiverBubble,
             ]}
           >
-            <Text
-              style={[
-                styles.messageText,
-                isSender ? styles.senderText : styles.receiverText,
-              ]}
-            >
-              {item.content}
-            </Text>
+            {/* Kiểm tra nếu tin nhắn có image_url, hiển thị ảnh; nếu không, hiển thị nội dung */}
+            {item.image_url ? (
+              <Image
+                source={{ uri: item.image_url }}
+                style={styles.messageImage}
+              />
+            ) : (
+              <Text
+                style={[
+                  styles.messageText,
+                  isSender ? styles.senderText : styles.receiverText,
+                ]}
+              >
+                {item.content}
+              </Text>
+            )}
           </View>
           <Text style={styles.timeText}>{formattedTime}</Text>
         </View>
@@ -185,7 +285,12 @@ const Message = ({ route }) => {
             <Icon name="chevron-back-outline" size={25} color="black" />
           </TouchableOpacity>
           <Image source={{ uri: avatar }} style={styles.headerAvatar} />
-          <Text style={styles.headerTitle}>{name}</Text>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>{name}</Text>
+            <Text style={styles.lastActiveText}>
+              Hoạt động {dayjs(lastOnline).fromNow()}
+            </Text>
+          </View>
           <View style={styles.headerIcons}>
             <Icon
               name="call-outline"
@@ -219,6 +324,44 @@ const Message = ({ route }) => {
           }
         />
 
+        <View style={styles.imagePreviewContainer}>
+          {selectedImages.length === 1 ? (
+            <View style={styles.imageWrapper}>
+              <Image
+                source={{ uri: selectedImages[0] }}
+                style={styles.selectedImage}
+              />
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => removeImage(selectedImages[0])}
+              >
+                <Text style={styles.deleteButtonText}>X</Text>
+              </TouchableOpacity>
+            </View>
+          ) : selectedImages.length > 1 ? (
+            <ScrollView
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              style={styles.multiImageContainer}
+            >
+              {selectedImages.map((imageUri, index) => (
+                <View key={index} style={styles.imageWrapper}>
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.multiSelectedImage}
+                  />
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => removeAllImages()}
+                  >
+                    <Text style={styles.deleteButtonText}>X</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          ) : null}
+        </View>
+
         <View style={styles.inputContainer}>
           <TextInput
             placeholder="Enter your message..."
@@ -227,8 +370,13 @@ const Message = ({ route }) => {
             style={styles.input}
           />
 
-          <TouchableOpacity>
-            <Icon name="add-circle" size={30} color="blue" style={styles.iconSend} />
+          <TouchableOpacity onPress={pickImage}>
+            <Icon
+              name="add-circle"
+              size={30}
+              color="blue"
+              style={styles.iconSend}
+            />
           </TouchableOpacity>
           <TouchableOpacity onPress={sendMessage}>
             <Icon name="send" size={30} color="blue" style={styles.iconSend} />
@@ -238,119 +386,5 @@ const Message = ({ route }) => {
     </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    backgroundColor: "#fff",
-    elevation: 2,
-  },
-  headerBack: {
-    marginRight: 10,
-  },
-  headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  headerTitle: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 18,
-    color: "#000",
-  },
-  headerIcons: {
-    flexDirection: "row",
-  },
-  icon: {
-    marginHorizontal: 10,
-  },
-  messageList: {
-    flex: 1,
-    paddingHorizontal: 10,
-  },
-  messageContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 10,
-  },
-  senderContainer: {
-    justifyContent: "flex-end",
-  },
-  receiverContainer: {
-    justifyContent: "flex-start",
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  messageBubbleContainer: {
-    flexDirection: "column",
-    alignItems: "flex-end",
-    maxWidth: "80%",
-  },
-  senderBubbleContainer: {
-    alignSelf: "flex-end",
-  },
-  receiverBubbleContainer: {
-    alignSelf: "flex-start",
-  },
-  messageBubble: {
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    maxWidth: "auto",
-  },
-  senderBubble: {
-    backgroundColor: "#a0e7ff",
-    marginRight: 10,
-  },
-  receiverBubble: {
-    backgroundColor: "#e0e0e0",
-    marginLeft: 10,
-  },
-  messageText: {
-    fontSize: 16,
-  },
-  senderText: {
-    color: "#000",
-  },
-  receiverText: {
-    color: "#333",
-  },
-  timeText: {
-    // Thêm class này để hiển thị thời gian
-    fontSize: 12,
-    color: "#999",
-    alignSelf: "flex-end",
-    marginTop: 5,
-    marginRight: 10,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#ddd",
-  },
-  input: {
-    flex: 1,
-    height: 40,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    backgroundColor: "#f0f0f0",
-  },
-  iconSend: {
-    marginHorizontal: 5,
-  },
-});
 
 export default Message;

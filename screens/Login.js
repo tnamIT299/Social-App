@@ -46,6 +46,7 @@ const Login = ({ navigation }) => {
       setError("Email không hợp lệ");
       return;
     }
+
     const currentDevice = generateToken();
 
     try {
@@ -64,7 +65,7 @@ const Login = ({ navigation }) => {
         if (user) {
           const { data: userData, error: userError } = await supabase
             .from("User")
-            .select("currentDevice")
+            .select("currentDevice, onlinestatus")
             .eq("uid", user.id)
             .single();
 
@@ -77,7 +78,10 @@ const Login = ({ navigation }) => {
           if (!userData.currentDevice) {
             const { error: updateError } = await supabase
               .from("User")
-              .update({ currentDevice: currentDevice })
+              .update({
+                currentDevice: currentDevice,
+                onlinestatus: "online",
+              })
               .eq("uid", user.id);
 
             if (updateError) {
@@ -92,6 +96,11 @@ const Login = ({ navigation }) => {
             setError("Tài khoản đang đăng nhập ở thiết bị khác.");
             return;
           } else {
+            // User is already logged in on this device, just update online status
+            await supabase
+              .from("User")
+              .update({ onlinestatus: "online" })
+              .eq("uid", user.id);
             navigation.navigate("TabNavigation");
           }
         }
