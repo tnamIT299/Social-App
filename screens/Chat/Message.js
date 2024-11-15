@@ -9,11 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  ScrollView
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
+import { sendMessageWithImage, deleteMessage } from "../../server/MessageService";
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
 import * as ImagePicker from "expo-image-picker";
@@ -64,25 +65,25 @@ const Message = ({ route }) => {
   }, [uid]);
 
   // Fetch messages khi senderId hoặc receiverId thay đổi
+  const fetchMessages = async () => {
+    if (!senderId || !receiverId) return;
+
+    const { data, error } = await supabase
+      .from("Message")
+      .select("*")
+      .or(
+        `and(sender_id.eq.${senderId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${senderId})`
+      )
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching messages:", error);
+    } else {
+      setMessages(data);
+    }
+  };
+
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (!senderId || !receiverId) return;
-
-      const { data, error } = await supabase
-        .from("Message")
-        .select("*")
-        .or(
-          `and(sender_id.eq.${senderId},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${senderId})`
-        ) // Chỉ lấy tin nhắn giữa A và B hoặc B và A
-        .order("created_at", { ascending: true }); // Sắp xếp tin nhắn theo thời gian
-
-      if (error) {
-        console.error("Error fetching messages:", error);
-      } else {
-        setMessages(data);
-      }
-    };
-
     fetchMessages();
   }, [senderId, receiverId]);
 
@@ -197,76 +198,135 @@ const Message = ({ route }) => {
     setSelectedImages(filteredImages);
   };
 
-  const removeAllImages = () => {
-    setSelectedImages([]); // Làm trống danh sách ảnh
-  };
-
-  const sendMessage = async (imageUrl) => {
-    if (newMessage.trim() !== "") {
-      const { error } = await supabase.from("Message").insert([
-        {
+  const sendMessage = async () => {
+    try {
+      // Kiểm tra nếu tin nhắn văn bản không rỗng và không có hình ảnh
+      if (newMessage.trim() !== "" && (!selectedImages || selectedImages.length === 0)) {
+        const { error } = await supabase.from("Message").insert([
+          {
+            sender_id: senderId,
+            receiver_id: receiverId,
+            content: newMessage,
+            created_at: getLocalISOString(),
+          },
+        ]);
+  
+        if (error) {
+          console.error("Error sending text message:", error);
+          return Alert.alert("Error", "Failed to send text message");
+        }
+  
+        setNewMessage(""); // Reset nội dung tin nhắn sau khi gửi thành công
+        return; // Kết thúc hàm nếu chỉ gửi tin nhắn văn bản
+      }
+  
+      // Kiểm tra nếu có hình ảnh
+      if (selectedImages && selectedImages.length > 0) {
+        const messageDetails = {
           sender_id: senderId,
           receiver_id: receiverId,
-          content: newMessage || "",
-          image_url: imageUrl,
+          image_url: selectedImages,
           created_at: getLocalISOString(),
-        },
-      ]);
-
-      if (error) {
-        console.error("Error sending message:", error);
-      } else {
-        setNewMessage("");
+        };
+  
+        // Gửi tin nhắn với hình ảnh
+        const success = await sendMessageWithImage(messageDetails);
+        if (!success) {
+          return Alert.alert("Error", "Error sending message with image");
+        }
       }
+  
+      // Nếu có cả tin nhắn văn bản và hình ảnh, gửi cả hai
+      if (newMessage.trim() !== "") {
+        const { error } = await supabase.from("Message").insert([
+          {
+            sender_id: senderId,
+            receiver_id: receiverId,
+            content: newMessage,
+            created_at: getLocalISOString(),
+          },
+        ]);
+  
+        if (error) {
+          console.error("Error sending text message:", error);
+          return Alert.alert("Error", "Failed to send text message");
+        }
+  
+        setNewMessage(""); // Reset nội dung tin nhắn sau khi gửi thành công
+      }
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      Alert.alert("Error", `Unexpected error: ${error.message}`);
     }
   };
+  
 
   const renderMessage = ({ item }) => {
     const isSender = item.sender_id === senderId;
     const formattedTime = dayjs(item.created_at).fromNow();
 
     return (
-      <View
-        style={[
-          styles.messageContainer,
-          isSender ? styles.senderContainer : styles.receiverContainer,
-        ]}
+      <TouchableOpacity
+        onLongPress={() => deleteMessage(item.id,fetchMessages)}
+        delayLongPress={500} 
+        activeOpacity={0.7}
       >
-        {!isSender && <Image source={{ uri: avatar }} style={styles.avatar} />}
         <View
           style={[
-            styles.messageBubbleContainer,
-            isSender
-              ? styles.senderBubbleContainer
-              : styles.receiverBubbleContainer,
+            styles.messageContainer,
+            isSender ? styles.senderContainer : styles.receiverContainer,
           ]}
         >
+          {/* Hiển thị avatar nếu là người nhận */}
+          {!isSender && <Image source={{ uri: avatar }} style={styles.avatar} />}
           <View
             style={[
-              styles.messageBubble,
-              isSender ? styles.senderBubble : styles.receiverBubble,
+              styles.messageBubbleContainer,
+              isSender
+                ? styles.senderBubbleContainer
+                : styles.receiverBubbleContainer,
             ]}
           >
-            {/* Kiểm tra nếu tin nhắn có image_url, hiển thị ảnh; nếu không, hiển thị nội dung */}
-            {item.image_url ? (
-              <Image
-                source={{ uri: item.image_url }}
-                style={styles.messageImage}
-              />
-            ) : (
-              <Text
-                style={[
-                  styles.messageText,
-                  isSender ? styles.senderText : styles.receiverText,
-                ]}
-              >
-                {item.content}
-              </Text>
-            )}
+            <View
+              style={[
+                styles.messageBubble,
+                isSender ? styles.senderBubble : styles.receiverBubble,
+              ]}
+            >
+              {/* Kiểm tra nếu tin nhắn có hình ảnh */}
+              {item.image_url ? (
+                Array.isArray(JSON.parse(item.image_url)) &&
+                JSON.parse(item.image_url).length > 0 ? (
+                  JSON.parse(item.image_url).map((image, index) => (
+                    <Image
+                      key={index}
+                      style={styles.messageImage}
+                      source={{ uri: image }}
+                    />
+                  ))
+                ) : (
+                  <Image
+                    style={styles.messageImage}
+                    source={{ uri: JSON.parse(item.image_url)[0] }}
+                  />
+                )
+              ) : (
+                /* Hiển thị nội dung tin nhắn nếu không có hình ảnh */
+                <Text
+                  style={[
+                    styles.messageText,
+                    isSender ? styles.senderText : styles.receiverText,
+                  ]}
+                >
+                  {item.content}
+                </Text>
+              )}
+            </View>
+            {/* Hiển thị thời gian gửi tin nhắn */}
+            <Text style={styles.timeText}>{formattedTime}</Text>
           </View>
-          <Text style={styles.timeText}>{formattedTime}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -324,43 +384,45 @@ const Message = ({ route }) => {
           }
         />
 
-        <View style={styles.imagePreviewContainer}>
-          {selectedImages.length === 1 ? (
-            <View style={styles.imageWrapper}>
-              <Image
-                source={{ uri: selectedImages[0] }}
-                style={styles.selectedImage}
-              />
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => removeImage(selectedImages[0])}
+        {selectedImages.length > 0 && (
+          <View style={styles.imagePreviewContainer}>
+            {selectedImages.length === 1 ? (
+              <View style={styles.imageWrapper}>
+                <Image
+                  source={{ uri: selectedImages[0] }}
+                  style={styles.selectedImage}
+                />
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => removeImage(selectedImages[0])}
+                >
+                  <Text style={styles.deleteButtonText}>X</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView
+                horizontal={true}
+                showsHorizontalScrollIndicator={false}
+                style={styles.multiImageContainer}
               >
-                <Text style={styles.deleteButtonText}>X</Text>
-              </TouchableOpacity>
-            </View>
-          ) : selectedImages.length > 1 ? (
-            <ScrollView
-              horizontal={true}
-              showsHorizontalScrollIndicator={false}
-              style={styles.multiImageContainer}
-            >
-              {selectedImages.map((imageUri, index) => (
-                <View key={index} style={styles.imageWrapper}>
-                  <Image
-                    source={{ uri: imageUri }}
-                    style={styles.multiSelectedImage}
-                  />
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => removeAllImages()}
-                  >
-                    <Text style={styles.deleteButtonText}>X</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          ) : null}
-        </View>
+                {selectedImages.map((imageUri, index) => (
+                  <View key={index} style={styles.imageWrapper}>
+                    <Image
+                      source={{ uri: imageUri }}
+                      style={styles.multiSelectedImage}
+                    />
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => removeImage(imageUri)}
+                    >
+                      <Text style={styles.deleteButtonText}>X</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
 
         <View style={styles.inputContainer}>
           <TextInput

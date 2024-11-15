@@ -7,15 +7,15 @@ const styles = StyleSheet.create({
     header: {
       flexDirection: "row",
       alignItems: "center",
-      padding: 10,
+      paddingHorizontal: 5,
+      paddingVertical: 10,
       backgroundColor: "#fff",
-      elevation: 2,
     },
     headerTextContainer: {
       flexDirection: "column",
     },
     lastActiveText: {
-      fontSize: 12,
+      fontSize: 11,
       marginLeft:10,
       color: "gray",
     },
@@ -29,11 +29,12 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
       marginLeft: 10,
-      fontSize: 18,
+      fontSize: 16,
       color: "red",
     },
     headerIcons: {
       flexDirection: "row",
+      paddingEnd:10,
     },
     icon: {
       marginHorizontal: 10,
@@ -90,6 +91,7 @@ const styles = StyleSheet.create({
       width: 200,
       height: 200,
       borderRadius: 10,
+      paddingVertical:5,
     },
     senderText: {
       color: "#000",
@@ -133,7 +135,6 @@ const styles = StyleSheet.create({
     imagePreviewWrapper: {
       position: "relative",
       marginRight: 10,
-      
     },
     imagePreview: {
       width: 60,
@@ -158,6 +159,7 @@ const styles = StyleSheet.create({
       marginRight: 10,
     },
     multiImageContainer: {
+     
       flexDirection: "row",
       height: 100,
       width: 100,
