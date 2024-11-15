@@ -1,2 +1,3 @@
 import Message from "./Message";
-export { Message};
+import MessageSummary from "./MessageSummary";
+export { Message,MessageSummary};

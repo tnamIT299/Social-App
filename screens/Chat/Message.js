@@ -14,7 +14,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
-import { sendMessageWithImage, deleteMessage } from "../../server/MessageService";
+import {
+  sendMessageWithImage,
+  deleteMessage,
+} from "../../server/MessageService";
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
 import * as ImagePicker from "expo-image-picker";
@@ -29,7 +32,9 @@ const Message = ({ route }) => {
   const navigation = useNavigation();
   const { avatar, name, uid } = route.params;
   const [senderId, setSenderId] = useState("");
+  const [userId, setuUerId] = useState("");
   const [lastOnline, setLastOnline] = useState(null);
+  const [onlinestatus, setOnlineStatus] = useState(null);
   const [receiverId, setReceiverId] = useState(uid);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -40,6 +45,7 @@ const Message = ({ route }) => {
   useEffect(() => {
     const fetchUserId = async () => {
       const userId = await getUserId();
+      setuUerId(userId);
       setSenderId(userId);
     };
     fetchUserId();
@@ -47,10 +53,10 @@ const Message = ({ route }) => {
 
   // Lấy lastOnline từ receiverId khi component mount
   useEffect(() => {
-    const fetchLastOnline = async () => {
+    const fetchStatus = async () => {
       const { data, error } = await supabase
         .from("User") // giả sử bảng của bạn là User
-        .select("lastOnline")
+        .select("onlinestatus, lastOnline")
         .eq("uid", uid)
         .single();
 
@@ -58,10 +64,11 @@ const Message = ({ route }) => {
         console.error("Error fetching last online:", error);
       } else {
         setLastOnline(data?.lastOnline);
+        setOnlineStatus(data?.onlinestatus);
       }
     };
 
-    fetchLastOnline();
+    fetchStatus();
   }, [uid]);
 
   // Fetch messages khi senderId hoặc receiverId thay đổi
@@ -201,7 +208,10 @@ const Message = ({ route }) => {
   const sendMessage = async () => {
     try {
       // Kiểm tra nếu tin nhắn văn bản không rỗng và không có hình ảnh
-      if (newMessage.trim() !== "" && (!selectedImages || selectedImages.length === 0)) {
+      if (
+        newMessage.trim() !== "" &&
+        (!selectedImages || selectedImages.length === 0)
+      ) {
         const { error } = await supabase.from("Message").insert([
           {
             sender_id: senderId,
@@ -210,16 +220,16 @@ const Message = ({ route }) => {
             created_at: getLocalISOString(),
           },
         ]);
-  
+
         if (error) {
           console.error("Error sending text message:", error);
           return Alert.alert("Error", "Failed to send text message");
         }
-  
+
         setNewMessage(""); // Reset nội dung tin nhắn sau khi gửi thành công
         return; // Kết thúc hàm nếu chỉ gửi tin nhắn văn bản
       }
-  
+
       // Kiểm tra nếu có hình ảnh
       if (selectedImages && selectedImages.length > 0) {
         const messageDetails = {
@@ -228,14 +238,14 @@ const Message = ({ route }) => {
           image_url: selectedImages,
           created_at: getLocalISOString(),
         };
-  
+
         // Gửi tin nhắn với hình ảnh
         const success = await sendMessageWithImage(messageDetails);
         if (!success) {
           return Alert.alert("Error", "Error sending message with image");
         }
       }
-  
+
       // Nếu có cả tin nhắn văn bản và hình ảnh, gửi cả hai
       if (newMessage.trim() !== "") {
         const { error } = await supabase.from("Message").insert([
@@ -246,12 +256,12 @@ const Message = ({ route }) => {
             created_at: getLocalISOString(),
           },
         ]);
-  
+
         if (error) {
           console.error("Error sending text message:", error);
           return Alert.alert("Error", "Failed to send text message");
         }
-  
+
         setNewMessage(""); // Reset nội dung tin nhắn sau khi gửi thành công
       }
     } catch (error) {
@@ -259,7 +269,6 @@ const Message = ({ route }) => {
       Alert.alert("Error", `Unexpected error: ${error.message}`);
     }
   };
-  
 
   const renderMessage = ({ item }) => {
     const isSender = item.sender_id === senderId;
@@ -267,8 +276,8 @@ const Message = ({ route }) => {
 
     return (
       <TouchableOpacity
-        onLongPress={() => deleteMessage(item.id,fetchMessages)}
-        delayLongPress={500} 
+        onLongPress={() => deleteMessage(item.id,item.sender_id,userId, fetchMessages)}
+        delayLongPress={500}
         activeOpacity={0.7}
       >
         <View
@@ -278,7 +287,9 @@ const Message = ({ route }) => {
           ]}
         >
           {/* Hiển thị avatar nếu là người nhận */}
-          {!isSender && <Image source={{ uri: avatar }} style={styles.avatar} />}
+          {!isSender && (
+            <Image source={{ uri: avatar }} style={styles.avatar} />
+          )}
           <View
             style={[
               styles.messageBubbleContainer,
@@ -348,7 +359,9 @@ const Message = ({ route }) => {
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>{name}</Text>
             <Text style={styles.lastActiveText}>
-              Hoạt động {dayjs(lastOnline).fromNow()}
+              {onlinestatus === "online"
+                ? "Đang hoạt động"
+                : `Hoạt động ${dayjs(lastOnline).fromNow()}`}
             </Text>
           </View>
           <View style={styles.headerIcons}>

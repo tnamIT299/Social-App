@@ -7,16 +7,16 @@ const styles = StyleSheet.create({
     header: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 5,
       paddingVertical: 10,
       backgroundColor: "#fff",
     },
     headerTextContainer: {
       flexDirection: "column",
+      flex:0.8
     },
     lastActiveText: {
       fontSize: 11,
-      marginLeft:10,
+      marginLeft:5,
       color: "gray",
     },
     headerBack: {
@@ -28,13 +28,13 @@ const styles = StyleSheet.create({
       borderRadius: 20,
     },
     headerTitle: {
-      marginLeft: 10,
       fontSize: 16,
+      marginLeft:5,
       color: "red",
     },
     headerIcons: {
       flexDirection: "row",
-      paddingEnd:10,
+      flex:0.65
     },
     icon: {
       marginHorizontal: 10,
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
       width: 200,
       height: 200,
       borderRadius: 10,
-      paddingVertical:5,
+      paddingVertical:10,
     },
     senderText: {
       color: "#000",

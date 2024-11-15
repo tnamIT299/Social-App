@@ -66,34 +66,40 @@ export const sendMessageWithImage = async (mesageDetails) => {
     return false;
   }
 };
-export const deleteMessage = async (id, fetchMessages) => {
-  Alert.alert("Xác nhận", "Bạn có chắc muốn xoá tin nhắn này?", [
-    { text: "Huỷ", style: "cancel" },
-    {
-      text: "Xoá",
-      style: "destructive",
-      onPress: async () => {
-        try {
-          const { error } = await supabase
-            .from("Message")
-            .delete()
-            .eq("id", id);
-
-          if (error) {
-            console.error("Lỗi xoá tin nhắn:", error);
-            Alert.alert("Lỗi", "Không thể xoá tin nhắn.");
-          } else {
-            Alert.alert("Thành công", "Tin nhắn đã được xoá.");
-            await fetchMessages();
+export const deleteMessage = async (id, senderId, uid, fetchMessages) => {
+    if (senderId !== uid) {
+      Alert.alert("Lỗi", "Bạn không có quyền xoá tin nhắn này.");
+      return; // Ngừng hành động nếu người dùng không phải là người gửi tin nhắn
+    }
+  
+    Alert.alert("Xác nhận", "Bạn có chắc muốn xoá tin nhắn này?", [
+      { text: "Huỷ", style: "cancel" },
+      {
+        text: "Xoá",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const { error } = await supabase
+              .from("Message")
+              .delete()
+              .eq("id", id);
+  
+            if (error) {
+              console.error("Lỗi xoá tin nhắn:", error);
+              Alert.alert("Lỗi", "Không thể xoá tin nhắn.");
+            } else {
+              Alert.alert("Thành công", "Tin nhắn đã được xoá.");
+              await fetchMessages(); // Tải lại tin nhắn
+            }
+          } catch (err) {
+            console.error("Unexpected error:", err);
+            Alert.alert("Lỗi", "Có lỗi xảy ra khi xoá tin nhắn.");
           }
-        } catch (err) {
-          console.error("Unexpected error:", err);
-          Alert.alert("Lỗi", "Có lỗi xảy ra khi xoá tin nhắn.");
-        }
+        },
       },
-    },
-  ]);
-};
+    ]);
+  };
+  
 
 
 const fileNameFromUri = (uri) => {

@@ -188,7 +188,7 @@ const HomeScreen = () => {
           </Modal>
 
           <View style={styles.notificationIcon}>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("MessageSummary", {userId})}>
               <Ionicons
                 name="chatbubble-ellipses-outline"
                 size={30}
