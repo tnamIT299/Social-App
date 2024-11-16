@@ -17,7 +17,7 @@ import {
   DetailProductPost,
   EditProductPostScreen,
 } from "../screens/ProductScreens";
-import { Message,MessageSummary } from "../screens/Chat";
+import { Message,MessageSummary,SettingChat } from "../screens/Chat";
 import { Account,ChangePassword } from "../screens/Account";
 const Stack = createStackNavigator();
 
@@ -65,6 +65,7 @@ function Navigation() {
         {/*Chat Screen*/}
         <Stack.Screen name="Message" component={Message} />
         <Stack.Screen name="MessageSummary" component={MessageSummary} />
+        <Stack.Screen name="SettingChat" component={SettingChat} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -1,3 +1,4 @@
 import Message from "./Message";
 import MessageSummary from "./MessageSummary";
-export { Message,MessageSummary};
+import SettingChat from "./SettingChat";
+export { Message,MessageSummary,SettingChat};

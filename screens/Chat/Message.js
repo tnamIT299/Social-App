@@ -136,7 +136,7 @@ const Message = ({ route }) => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }
   }, [messages]);
-
+  
   // Hàm lấy thời gian theo múi giờ địa phương
   const getLocalISOString = () => {
     const localTimeOffset = 7 * 60 * 60 * 1000; // Chênh lệch múi giờ UTC+7
@@ -276,7 +276,9 @@ const Message = ({ route }) => {
 
     return (
       <TouchableOpacity
-        onLongPress={() => deleteMessage(item.id,item.sender_id,userId, fetchMessages)}
+        onLongPress={() =>
+          deleteMessage(item.id, item.sender_id, userId, fetchMessages)
+        }
         delayLongPress={500}
         activeOpacity={0.7}
       >
@@ -377,12 +379,15 @@ const Message = ({ route }) => {
               color="black"
               style={styles.icon}
             />
+            <TouchableOpacity onPress={() => navigation.navigate("SettingChat")}>
             <Icon
               name="ellipsis-horizontal-outline"
               size={25}
               color="black"
               style={styles.icon}
             />
+            </TouchableOpacity>
+            
           </View>
         </View>
 
@@ -395,6 +400,7 @@ const Message = ({ route }) => {
           onContentSizeChange={() =>
             flatListRef.current?.scrollToEnd({ animated: true })
           }
+          // Alternatively, you could use onLayout or onScroll to trigger scroll if needed
         />
 
         {selectedImages.length > 0 && (

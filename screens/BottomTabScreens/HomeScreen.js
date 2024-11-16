@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Dimensions
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,13 +25,15 @@ dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
 const HomeScreen = () => {
-  const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [isSearchModalVisible, setSearchModalVisible] = useState(false);
   const [posts, setPosts] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState("");
   const [likedPosts, setLikedPosts] = useState({});
+  const [modalAddVisible, setModalAddVisible] = useState(false);
+  const [modalSearchVisible, setModalSearchVisible] = useState(false);
+  const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
   const navigation = useNavigation();
   const [avatarUrl, setAvatarUrl] = useState(null);
 
@@ -66,10 +69,7 @@ const HomeScreen = () => {
     fetchUserAvatar();
   }, []);
 
-  const handleCreatePost = () => {
-    toggleAddMenu(); // Đóng menu
-    navigation.navigate("CreatePost"); // Điều hướng đến màn hình CreatePost
-  };
+
 
   const handleSearchUser = () => {
     toggleSearchMenu(); // Đóng menu
@@ -98,12 +98,31 @@ const HomeScreen = () => {
     }, [])
   );
 
-  const toggleAddMenu = () => {
-    setAddModalVisible(!isAddModalVisible);
-  };
 
   const toggleSearchMenu = () => {
     setSearchModalVisible(!isSearchModalVisible);
+  };
+
+  const handleOpenAddModal = (event) => {
+    const { pageY, pageX } = event.nativeEvent;
+    const windowWidth = Dimensions.get("window").width;
+
+    setModalPosition({
+      top: pageY + 10,
+      right: windowWidth - pageX - 10,
+    });
+    setModalAddVisible(true);
+  };
+
+  const handleOpenSearchModal = (event) => {
+    const { pageY, pageX } = event.nativeEvent;
+    const windowWidth = Dimensions.get("window").width;
+
+    setModalPosition({
+      top: pageY + 10,
+      right: windowWidth - pageX - 10,
+    });
+    setModalSearchVisible(true);
   };
 
   return (
@@ -112,7 +131,7 @@ const HomeScreen = () => {
       <View style={styles.header}>
         <Text style={styles.logo}>Loopy</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={toggleAddMenu}>
+          <TouchableOpacity onPress={(event) => handleOpenAddModal(event)}>
             <Ionicons
               name="add-circle-outline"
               size={30}
@@ -121,37 +140,69 @@ const HomeScreen = () => {
             />
           </TouchableOpacity>
 
+          {/* Options Modal */}
           <Modal
             animationType="fade"
             transparent={true}
-            visible={isAddModalVisible}
-            onRequestClose={toggleAddMenu}
+            visible={modalAddVisible}
+            onRequestClose={() => setModalAddVisible(false)}
           >
             <TouchableOpacity
               style={styles.modalOverlay}
-              onPress={toggleAddMenu}
+              activeOpacity={1}
+              onPressOut={() => setModalAddVisible(false)}
             >
-              <View style={styles.menuContainer}>
+              <View
+                style={[
+                  styles.modalContent,
+                  { top: modalPosition.top, right: modalPosition.right },
+                ]}
+              >
                 <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={handleCreatePost}
+                  style={styles.optionItem}
+                  onPress={() => navigation.navigate("CreatePost")}
                 >
-                  <Text>Tạo bài viết</Text>
+                  <Ionicons
+                    name="create-outline"
+                    size={24}
+                    color="black"
+                    style={styles.iconButton}
+                  />
+                  <Text style={styles.optionText}>Tạo bài viết</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem}>
-                  <Text>Tạo tin</Text>
+
+                <TouchableOpacity style={styles.optionItem}>
+                  <Ionicons
+                    name="crop-outline"
+                    size={24}
+                    color="black"
+                    style={styles.iconButton}
+                  />
+                  <Text style={styles.optionText}>Tạo tin</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem}>
-                  <Text>Tạo Short Video</Text>
+                <TouchableOpacity style={styles.optionItem}>
+                  <Ionicons
+                    name="film-outline"
+                    size={24}
+                    color="black"
+                    style={styles.iconButton}
+                  />
+                  <Text style={styles.optionText}>Tạo ShortVideo</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem}>
-                  <Text>Tạo Livestream</Text>
+                <TouchableOpacity style={styles.optionItem}>
+                  <Ionicons
+                    name="videocam-outline"
+                    size={24}
+                    color="black"
+                    style={styles.iconButton}
+                  />
+                  <Text style={styles.optionText}>Tạo Livestream</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
           </Modal>
 
-          <TouchableOpacity onPress={toggleSearchMenu}>
+          <TouchableOpacity onPress={(event) => handleOpenSearchModal(event)}>
             <Ionicons
               name="search-outline"
               size={30}
@@ -163,32 +214,58 @@ const HomeScreen = () => {
           <Modal
             animationType="fade"
             transparent={true}
-            visible={isSearchModalVisible}
-            onRequestClose={toggleSearchMenu}
+            visible={modalSearchVisible}
+            onRequestClose={() => setModalSearchVisible(false)}
           >
             <TouchableOpacity
               style={styles.modalOverlay}
-              onPress={toggleSearchMenu}
+              activeOpacity={1}
+              onPressOut={() => setModalSearchVisible(false)}
             >
-              <View style={styles.menuContainer}>
+              <View
+                style={[
+                  styles.modalContent,
+                  { top: modalPosition.top, right: modalPosition.right },
+                ]}
+              >
                 <TouchableOpacity
-                  style={styles.menuItem}
+                  style={styles.optionItem}
                   onPress={handleSearchUser}
                 >
-                  <Text>Tìm kiếm người dùng</Text>
+                  <Ionicons
+                    name="locate-outline"
+                    size={24}
+                    color="black"
+                    style={styles.iconButton}
+                  />
+                  <Text style={styles.optionText}>Tìm kiếm người dùng</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={handleSearchPost}
-                >
-                  <Text>Tìm kiếm bài viết</Text>
+
+                <TouchableOpacity style={styles.optionItem}
+                onPress={handleSearchPost}>
+                  <Ionicons
+                    name="document-text-outline"
+                    size={24}
+                    color="black"
+                    style={styles.iconButton}
+                  />
+                  <Text style={styles.optionText}>Tìm kiếm bài viết</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
           </Modal>
 
           <View style={styles.notificationIcon}>
-            <TouchableOpacity onPress={() => navigation.navigate("MessageSummary", {userId})}>
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate("MessageSummary", {
+                  screen: "MessageSummaryTab",
+                  params: {
+                    userId: userId,
+                  },
+                })
+              }
+            >
               <Ionicons
                 name="chatbubble-ellipses-outline"
                 size={30}
@@ -208,7 +285,7 @@ const HomeScreen = () => {
           source={{ uri: avatarUrl || "https://via.placeholder.com/150" }}
           style={styles.avatar}
         />
-        <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?"/>
+        <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
       </View>
 
       {/* Post cards with horizontal ScrollView */}
@@ -355,6 +432,28 @@ const styles = StyleSheet.create({
   },
   storyCardText: {
     marginTop: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-start",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    position: "absolute",
+    backgroundColor: "white",
+    padding: 10,
+    borderRadius: 10,
+    width: 190,
+    zIndex: 999,
+  },
+  optionItem: {
+    flexDirection: "row",
+    paddingVertical: 5,
+  },
+  optionText: {
+    color: "black",
+    fontSize: 15,
+    marginLeft: 10,
   },
 });
 

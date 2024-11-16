@@ -100,12 +100,10 @@ const styles = StyleSheet.create({
       color: "#333",
     },
     timeText: {
-      // Thêm class này để hiển thị thời gian
       fontSize: 12,
       color: "#999",
       alignSelf: "flex-end",
       marginTop: 5,
-      marginRight: 10,
     },
     inputContainer: {
       flexDirection: "row",

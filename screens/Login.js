@@ -79,7 +79,7 @@ const Login = ({ navigation }) => {
             const { error: updateError } = await supabase
               .from("User")
               .update({
-                currentDevice: currentDevice,
+               // currentDevice: currentDevice,
                 onlinestatus: "online",
               })
               .eq("uid", user.id);
