@@ -30,7 +30,6 @@ const styles = StyleSheet.create({
     headerTitle: {
       fontSize: 16,
       marginLeft:5,
-      color: "red",
     },
     headerIcons: {
       flexDirection: "row",
@@ -77,11 +76,11 @@ const styles = StyleSheet.create({
       maxWidth: "auto",
     },
     senderBubble: {
-      backgroundColor: "#a0e7ff",
+      //backgroundColor: "#a0e7ff",
       marginRight: 10,
     },
     receiverBubble: {
-      backgroundColor: "#e0e0e0",
+      //backgroundColor: "#a0e7ff",
       marginLeft: 10,
     },
     messageText: {

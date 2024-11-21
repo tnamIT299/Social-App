@@ -24,13 +24,14 @@ import * as ImagePicker from "expo-image-picker";
 import styles from "./style";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
+import "dayjs/locale/vi";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
 const Message = ({ route }) => {
   const navigation = useNavigation();
-  const { avatar, name, uid } = route.params;
+  const { uid, avatar, name, themeColor: paramThemeColor } = route.params || {};
   const [senderId, setSenderId] = useState("");
   const [userId, setuUerId] = useState("");
   const [lastOnline, setLastOnline] = useState(null);
@@ -39,6 +40,7 @@ const Message = ({ route }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [selectedImages, setSelectedImages] = useState([]);
+  const [themeColor, setThemeColor] = useState("#a0e7ff");
   const flatListRef = useRef(null);
 
   // Lấy senderId từ getUserId khi component mount
@@ -136,7 +138,31 @@ const Message = ({ route }) => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }
   }, [messages]);
-  
+
+  // Tải màu từ AsyncStorage
+  useEffect(() => {
+    const loadThemeColor = async () => {
+      try {
+        // Nếu `themeColor` được truyền qua `route.params`, sử dụng nó
+        if (paramThemeColor) {
+          setThemeColor(paramThemeColor);
+          await AsyncStorage.setItem("themeColor", paramThemeColor); // Lưu màu mới vào AsyncStorage
+        } else {
+          // Nếu không có, tải từ AsyncStorage
+          const savedColor = await AsyncStorage.getItem("themeColor");
+          if (savedColor) {
+            setThemeColor(savedColor); // Áp dụng màu đã lưu
+          }
+        }
+      } catch (error) {
+        console.error("Error loading theme color:", error);
+      }
+    };
+
+    loadThemeColor();
+  }, [paramThemeColor]);
+
+
   // Hàm lấy thời gian theo múi giờ địa phương
   const getLocalISOString = () => {
     const localTimeOffset = 7 * 60 * 60 * 1000; // Chênh lệch múi giờ UTC+7
@@ -303,7 +329,9 @@ const Message = ({ route }) => {
             <View
               style={[
                 styles.messageBubble,
-                isSender ? styles.senderBubble : styles.receiverBubble,
+                isSender
+                  ? [styles.senderBubble, { backgroundColor: themeColor }]
+                  : [styles.receiverBubble, { backgroundColor: themeColor }],
               ]}
             >
               {/* Kiểm tra nếu tin nhắn có hình ảnh */}
@@ -379,15 +407,25 @@ const Message = ({ route }) => {
               color="black"
               style={styles.icon}
             />
-            <TouchableOpacity onPress={() => navigation.navigate("SettingChat")}>
-            <Icon
-              name="ellipsis-horizontal-outline"
-              size={25}
-              color="black"
-              style={styles.icon}
-            />
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate("SettingChat", {
+                  screen: "SettingChatTab",
+                  params: {
+                    avatar: avatar,
+                    name: name,
+                    uid: uid,
+                  },
+                })
+              }
+            >
+              <Icon
+                name="ellipsis-horizontal-outline"
+                size={25}
+                color="black"
+                style={styles.icon}
+              />
             </TouchableOpacity>
-            
           </View>
         </View>
 
