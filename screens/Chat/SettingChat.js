@@ -12,7 +12,7 @@ import React, { useState } from "react";
 import Icon from "react-native-vector-icons/Ionicons";
 import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
 import { createStackNavigator } from "@react-navigation/stack";
-import {handleColorChange} from "../../data/cacheColor"
+import {handleColorChange} from "../../cache/cacheColor"
 
 const Stack = createStackNavigator();
 
