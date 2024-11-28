@@ -19,8 +19,8 @@ import { v4 as uuidv4 } from "uuid";
 import { saveUserData } from "../data/saveUserData";
 
 const Login = ({ navigation }) => {
-  const [email, setEmail] = useState("thinh@gmail.com");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
 

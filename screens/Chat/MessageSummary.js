@@ -12,7 +12,7 @@ import {
 import { supabase } from "../../data/supabaseClient";
 import Icon from "react-native-vector-icons/Ionicons";
 import { createStackNavigator } from "@react-navigation/stack";
-import {saveToCache,fetchFromCache} from "../../data/cacheConversation"
+import {saveToCache,fetchFromCache} from "../../cache/cacheConversation"
 
 const Stack = createStackNavigator();
 
