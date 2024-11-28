@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useCallback} from "react";
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation,useFocusEffect } from "@react-navigation/native";
 import {
   handleSendFriendRequest,
   handleUndoAddFriend,
@@ -25,6 +25,7 @@ const FriendSuggestion = ({
   setSuggestions, 
 }) => {
   const [isFriendAdded, setIsFriendAdded] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
   const navigation = useNavigation();
 
   const handleAddFriend = async () => {
@@ -65,6 +66,15 @@ const FriendSuggestion = ({
       },
     })
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFetched) {
+        fetchSuggestions();
+        setHasFetched(true);  // Đánh dấu là đã tải dữ liệu
+      }
+    }, [fetchSuggestions, hasFetched])
+  );
 
   return (
     <View style={{marginBottom:15}}>
