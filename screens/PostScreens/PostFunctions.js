@@ -84,6 +84,85 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
   }
 };
 
+export const fetchPostsUser = async (userId ,setPosts, setLoading, setError) => {
+  setLoading(true);
+  try {
+    // Lấy danh sách bài viết với quyền truy cập là "cộng đồng"
+    const { data: postsData, error: postsError } = await supabase
+      .from("Post")
+      .select("*")
+      .eq("uid", userId);
+
+    if (postsError) throw new Error(postsError.message);
+
+    // Kiểm tra nếu không có bài viết nào
+    if (!postsData || postsData.length === 0) {
+      setPosts([]);
+      return;
+    }
+
+    // Lấy danh sách người dùng, lượt thích và bình luận cho tất cả bài viết
+    const updatedPosts = await Promise.all(
+      postsData.map(async (post) => {
+        const userPromise = supabase
+          .from("User")
+          .select("uid, name, avatar")
+          .eq("uid", post.uid)
+          .single();
+
+        const likePromise = supabase
+          .from("Like")
+          .select("status")
+          .eq("post_id", post.pid)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        const commentsPromise = supabase
+          .from("Comment")
+          .select("*, User(name, avatar)") // Join để lấy thông tin người dùng
+          .eq("pid", post.pid);
+
+        const [userData, likeData, commentsData] = await Promise.all([
+          userPromise,
+          likePromise,
+          commentsPromise,
+        ]);
+
+        // Xử lý lỗi từ các yêu cầu
+        if (userData.error) throw new Error(userData.error.message);
+        if (likeData.error) throw new Error(likeData.error.message);
+        if (commentsData.error) throw new Error(commentsData.error.message);
+
+        const likedByUser = likeData.data ? likeData.data.status : false;
+
+        // Sắp xếp bình luận theo thứ tự thời gian giảm dần
+        const sortedComments = (commentsData.data || []).sort(
+          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+        );
+
+        return {
+          ...post,
+          user: userData.data,
+          likedByUser,
+          comments: sortedComments,
+        };
+      })
+    );
+
+    // Sắp xếp các bài viết theo thời gian tạo
+    const sortedPosts = updatedPosts.sort(
+      (a, b) => new Date(b.createdat) - new Date(a.createdat)
+    );
+
+    setPosts(sortedPosts);
+  } catch (error) {
+    setError(error.message);
+    console.error("Lỗi khi lấy bài viết:", error.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 export const handleLike = async (
   postId,
   isLiked,
