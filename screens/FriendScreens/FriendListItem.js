@@ -2,7 +2,7 @@ import React from "react";
 import { View, TouchableOpacity, Text, StyleSheet, Image, Button, Alert } from "react-native";
 import { handleRemoveFriend } from "./FriendFunction";
 import Message from "../Chat/Message";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation,useFocusEffect  } from "@react-navigation/native";
 import Icon from 'react-native-vector-icons/Ionicons';
 
 const FriendListItem = ({ avatar, name, uid, fetchFriendList }) => {
@@ -28,8 +28,19 @@ const FriendListItem = ({ avatar, name, uid, fetchFriendList }) => {
     navigation.navigate('Message', { avatar, name, uid });
   };
   const goToProfileScreen = () => {
-    navigation.navigate('Profile', { uid });
+    navigation.navigate("Profile", {
+      screen: "ProfileTab", // Tên tab bạn muốn điều hướng đến
+      params: {
+        userId: uid, 
+      },
+    })
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchFriendList(); // Tải lại danh sách bạn bè
+    }, [fetchFriendList])
+  );
 
 
   return (

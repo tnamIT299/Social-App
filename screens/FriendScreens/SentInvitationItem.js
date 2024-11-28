@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 import { handleRevokeInvitation } from "./FriendFunction";
+import { useNavigation } from "@react-navigation/native";
 
 const SentInvitationItem = ({
   avatar,
@@ -8,6 +9,7 @@ const SentInvitationItem = ({
   receiverId,
   fetchSentInvitations,
 }) => {
+  const navigation = useNavigation();
   const onRevoke = async () => {
     try {
       await handleRevokeInvitation(receiverId, fetchSentInvitations); // Gọi hàm hoàn tác lời mời
@@ -16,9 +18,20 @@ const SentInvitationItem = ({
     }
   };
 
+  const goToProfileScreen = () => {
+    navigation.navigate("Profile", {
+      screen: "ProfileTab", // Tên tab bạn muốn điều hướng đến
+      params: {
+        userId: receiverId, 
+      },
+    })
+  };
+
   return (
     <View style={styles.requestContainer}>
-      <Image source={{ uri: avatar }} style={styles.avatar} />
+      <TouchableOpacity onPress={goToProfileScreen}>
+          <Image source={{ uri: avatar }} style={styles.avatar} />
+        </TouchableOpacity>
       <View style={styles.requestInfo}>
         <Text style={styles.name}>{name}</Text>
         <TouchableOpacity style={styles.revokeButton} onPress={onRevoke}>
