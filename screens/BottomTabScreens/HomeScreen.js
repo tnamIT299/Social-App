@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Dimensions
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -69,8 +69,6 @@ const HomeScreen = () => {
     fetchUserAvatar();
   }, []);
 
-
-
   const handleSearchUser = () => {
     toggleSearchMenu(); // Đóng menu
     navigation.navigate("UserSearchScreen"); // Điều hướng đến màn hình tìm kiếm người dùng
@@ -97,7 +95,6 @@ const HomeScreen = () => {
       loadPosts();
     }, [])
   );
-
 
   const toggleSearchMenu = () => {
     setSearchModalVisible(!isSearchModalVisible);
@@ -241,8 +238,10 @@ const HomeScreen = () => {
                   <Text style={styles.optionText}>Tìm kiếm người dùng</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.optionItem}
-                onPress={handleSearchPost}>
+                <TouchableOpacity
+                  style={styles.optionItem}
+                  onPress={handleSearchPost}
+                >
                   <Ionicons
                     name="document-text-outline"
                     size={24}

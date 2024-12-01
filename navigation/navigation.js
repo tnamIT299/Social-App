@@ -6,7 +6,6 @@ import Login from "../screens/Login";
 import SignUp from "../screens/SignUp";
 import ForgetPassword from "../screens/ForgetPassword";
 import TabNavigation from "./tabNavigation";
-import * as Linking from "expo-linking";
 import { FriendsScreen } from "../screens/BottomTabScreens";
 import { CreatePost, EditPost, PostDetailScreen } from "../screens/PostScreens";
 import { UserSearchScreen, PostSearchScreen } from "../screens/SearchScreens";
@@ -17,7 +16,7 @@ import {
   DetailProductPost,
   EditProductPostScreen,
 } from "../screens/ProductScreens";
-import { Message,MessageSummary,SettingChat } from "../screens/Chat";
+import { Message,MessageSummary,SettingChat,AddGroup,GroupList } from "../screens/Chat";
 import { Account,ChangePassword } from "../screens/Account";
 import { CreateReel } from "../screens/Reel";
 
@@ -72,6 +71,8 @@ function Navigation() {
          {/*Reel Screen*/}
          <Stack.Screen name="CreateReel" component={CreateReel} />
 
+        <Stack.Screen name="AddGroup" component={AddGroup} />
+        <Stack.Screen name="GroupList" component={GroupList} />
       </Stack.Navigator>
     </NavigationContainer>
   );
