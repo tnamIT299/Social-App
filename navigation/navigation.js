@@ -19,6 +19,8 @@ import {
 } from "../screens/ProductScreens";
 import { Message,MessageSummary,SettingChat } from "../screens/Chat";
 import { Account,ChangePassword } from "../screens/Account";
+import { CreateReel } from "../screens/Reel";
+
 const Stack = createStackNavigator();
 
 function Navigation() {
@@ -66,6 +68,10 @@ function Navigation() {
         <Stack.Screen name="Message" component={Message} />
         <Stack.Screen name="MessageSummary" component={MessageSummary} />
         <Stack.Screen name="SettingChat" component={SettingChat} />
+
+         {/*Reel Screen*/}
+         <Stack.Screen name="CreateReel" component={CreateReel} />
+
       </Stack.Navigator>
     </NavigationContainer>
   );
