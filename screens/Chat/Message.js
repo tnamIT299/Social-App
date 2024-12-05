@@ -18,6 +18,12 @@ import {
   sendMessageWithImage,
   deleteMessage,
 } from "../../server/MessageService";
+import {
+  pickImage,
+  launchGallery,
+  launchCamera,
+  removeImage,
+} from "./imagePickerHelper";
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
 import * as ImagePicker from "expo-image-picker";
@@ -162,73 +168,11 @@ const Message = ({ route }) => {
     loadThemeColor();
   }, [paramThemeColor]);
 
-
   // Hàm lấy thời gian theo múi giờ địa phương
   const getLocalISOString = () => {
     const localTimeOffset = 7 * 60 * 60 * 1000; // Chênh lệch múi giờ UTC+7
     const localDate = new Date(new Date().getTime() + localTimeOffset);
     return localDate.toISOString();
-  };
-
-  const pickImage = async () => {
-    const options = [
-      { text: "Chọn Thư viện", onPress: () => launchGallery() },
-      { text: "Chụp ảnh", onPress: () => launchCamera() },
-      { text: "Hủy", onPress: () => {}, style: "cancel" },
-    ];
-
-    Alert.alert("Chọn ảnh", "Bạn muốn chọn ảnh từ đâu?", options);
-  };
-
-  const launchGallery = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      alert("Permission to access camera roll is required!");
-      return;
-    }
-
-    let pickerResult = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!pickerResult.canceled && pickerResult.assets.length > 0) {
-      // Thêm ảnh mới vào mảng selectedImages
-      setSelectedImages([...selectedImages, pickerResult.assets[0].uri]);
-    } else {
-      console.log("No image selected or picker was canceled");
-    }
-  };
-
-  const launchCamera = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permissionResult.granted) {
-      alert("Permission to access camera is required!");
-      return;
-    }
-
-    let cameraResult = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!cameraResult.canceled && cameraResult.assets.length > 0) {
-      // Thêm ảnh mới vào mảng selectedImages
-      setSelectedImages([...selectedImages, cameraResult.assets[0].uri]);
-    } else {
-      console.log("No image taken or camera was canceled");
-    }
-  };
-
-  const removeImage = (uri) => {
-    // Hàm để xóa ảnh khỏi danh sách selectedImages
-    const filteredImages = selectedImages.filter(
-      (imageUri) => imageUri !== uri
-    );
-    setSelectedImages(filteredImages);
   };
 
   const sendMessage = async () => {
@@ -451,7 +395,13 @@ const Message = ({ route }) => {
                 />
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={() => removeImage(selectedImages[0])}
+                  onPress={() =>
+                    removeImage(
+                      selectedImages[0],
+                      setSelectedImages,
+                      selectedImages
+                    )
+                  }
                 >
                   <Text style={styles.deleteButtonText}>X</Text>
                 </TouchableOpacity>
@@ -470,7 +420,9 @@ const Message = ({ route }) => {
                     />
                     <TouchableOpacity
                       style={styles.deleteButton}
-                      onPress={() => removeImage(imageUri)}
+                      onPress={() =>
+                        removeImage(imageUri, setSelectedImages, selectedImages)
+                      }
                     >
                       <Text style={styles.deleteButtonText}>X</Text>
                     </TouchableOpacity>
@@ -489,7 +441,14 @@ const Message = ({ route }) => {
             style={styles.input}
           />
 
-          <TouchableOpacity onPress={pickImage}>
+          <TouchableOpacity
+            onPress={() =>
+              pickImage(
+                () => launchGallery(setSelectedImages, selectedImages),
+                () => launchCamera(setSelectedImages, selectedImages)
+              )
+            }
+          >
             <Icon
               name="add-circle"
               size={30}

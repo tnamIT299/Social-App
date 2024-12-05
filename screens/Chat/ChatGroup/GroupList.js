@@ -1,90 +1,105 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, FlatList, StyleSheet, Image, ActivityIndicator } from "react-native";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+  TouchableOpacity,
+  TextInput,
+} from "react-native";
 import { supabase } from "../../../data/supabaseClient";
+import { getUserId } from "../../../data/getUserData";
 import Icon from "react-native-vector-icons/Ionicons";
 import { createStackNavigator } from "@react-navigation/stack";
 
 const Stack = createStackNavigator();
 
 const GroupListTab = () => {
-  const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [userUid, setUserUid] = useState(null); // Lưu UID của người dùng hiện tại
-  const [filteredGroups, setFilteredGroups] = useState([]); // Lưu nhóm đã được lọc
+  const navigation = useNavigation();
+  const [groups, setGroups] = useState([]); // Danh sách nhóm
+  const [loading, setLoading] = useState(true); // Trạng thái tải
+  const [userUid, setUserUid] = useState(null);
+  const [searchText, setSearchText] = useState("");
+  const [filteredGroups, setFilteredGroups] = useState([]);
 
+  // Lấy UID người dùng
   useEffect(() => {
-    // Lấy UID của người dùng hiện tại từ supabase.auth.getUser()
-    const fetchUserUid = async () => {
-      const { user, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error("Lỗi khi lấy thông tin người dùng:", error);
-        return;
-      }
-      if (user) {
-        setUserUid(user.id);
-      }
+    const fetchUserId = async () => {
+      const id = await getUserId(); // Giả định hàm getUserId trả về UID từ Supabase
+      setUserUid(id);
+      console.log("User UID:", id); // Log UID để kiểm tra
     };
-
-    fetchUserUid();
+    fetchUserId();
   }, []);
 
+  // Lấy danh sách nhóm mà người dùng tham gia
   useEffect(() => {
     const fetchGroups = async () => {
-      if (!userUid) return; // Đợi cho đến khi có UID của người dùng
+      if (!userUid) return; // Đợi cho đến khi UID của người dùng được thiết lập
 
       try {
-        // Lấy tất cả nhóm từ bảng Group
-        const { data: groupsData, error: groupsError } = await supabase.from("Group").select("*");
-        if (groupsError) {
-          console.error("Lỗi khi lấy nhóm từ Supabase:", groupsError);
+        // Truy vấn Participant để lấy groupid
+        const { data: participantData, error: participantError } =
+          await supabase
+            .from("Participant")
+            .select("groupid")
+            .eq("Uid", userUid)
+            .in("role", ["admin", "member"]);
+
+        if (participantError) {
+          console.error("Participant query error:", participantError);
           return;
         }
 
-        // Lọc các nhóm mà người dùng tham gia và có quyền admin hoặc member
-        const filtered = [];
-        for (let group of groupsData) {
-          const { data: participantData, error: participantError } = await supabase
-            .from("Participant")
-            .select("role")
-            .eq("groupid", group.groupid)
-            .eq("Uid", userUid);
+        console.log("Participant Data:", participantData); // Log dữ liệu Participant
 
-          if (participantError) {
-            console.error("Lỗi khi lấy dữ liệu Participant:", participantError);
-            continue;
-          }
+        const groupIds = participantData.map(
+          (participant) => participant.groupid
+        );
 
-          console.log("Dữ liệu participant:", participantData); // Log dữ liệu để kiểm tra
-
-          // Kiểm tra role là admin hoặc member
-          const hasPermission = participantData.some(
-            (participant) => participant.role === 'admin' || participant.role ==='member'
-          );
-
-          if (hasPermission) {
-            filtered.push(group); // Thêm nhóm vào danh sách nếu có quyền
-          }
+        if (groupIds.length === 0) {
+          setGroups([]); // Nếu không có nhóm nào, trả về danh sách rỗng
+          return;
         }
 
-        setFilteredGroups(filtered); // Cập nhật danh sách nhóm đã lọc
-        console.log("Các nhóm đã lọc:", filtered); // Log nhóm đã lọc
+        // Truy vấn Group để lấy thông tin chi tiết
+        const { data: groupsData, error: groupsError } = await supabase
+          .from("Group")
+          .select("*")
+          .in("groupid", groupIds);
 
+        if (groupsError) {
+          console.error("Group query error:", groupsError);
+          return;
+        }
+
+        console.log("Group Data:", groupsData); // Log dữ liệu Group
+
+        setGroups(groupsData); // Lưu danh sách nhóm
       } catch (error) {
-        console.error("Lỗi khi lấy dữ liệu:", error);
+        console.error("Error fetching group data:", error);
       } finally {
-        setLoading(false);
+        setLoading(false); // Kết thúc trạng thái tải
       }
     };
 
     fetchGroups();
-  }, [userUid]); // Fetch nhóm mỗi khi UID người dùng thay đổi
+  }, [userUid]); // Chạy lại khi userUid thay đổi
 
   const renderGroup = ({ item }) => {
-    // Giải mã dữ liệu icon của nhóm (nếu có nhiều ảnh)
     const groupIcon = item.groupicon ? JSON.parse(item.groupicon)[0] : null;
-
+    const groupName = item.grouptitle;
+    const groupId = item.groupid;
     return (
-      <View style={styles.groupItem}>
+      <TouchableOpacity
+        style={styles.groupItem}
+        onPress={() =>
+          navigation.navigate("GroupMessage", { groupName, groupIcon, groupId })
+        }
+      >
         <View style={styles.avatarContainer}>
           {groupIcon ? (
             <Image source={{ uri: groupIcon }} style={styles.groupIcon} />
@@ -97,25 +112,58 @@ const GroupListTab = () => {
         <View style={styles.groupInfo}>
           <Text style={styles.groupTitle}>{item.grouptitle}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
-  // if (loading) {
-  //   return (
-  //     <View style={styles.loadingContainer}>
-  //       <ActivityIndicator size="large" color="#0000ff" />
-  //     </View>
-  //   );
-  // }
+  const handleSearch = (text) => {
+    setSearchText(text);
+
+    if (text === "") {
+      setFilteredGroups(groups); // Nếu không có tìm kiếm, hiển thị tất cả nhóm
+    } else {
+      const filtered = groups.filter((item) =>
+        item.grouptitle.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredGroups(filtered); // Lọc và cập nhật danh sách nhóm
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  if (groups.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text>Không có nhóm nào để hiển thị.</Text>
+      </View>
+    );
+  }
 
   return (
-    <FlatList
-      data={filteredGroups} // Hiển thị danh sách nhóm đã lọc
-      keyExtractor={(item) => item.groupid.toString()} // Sử dụng groupid làm key
-      renderItem={renderGroup}
-      contentContainerStyle={styles.listContainer}
-    />
+    <View style={styles.container}>
+      {/* Thanh tìm kiếm input */}
+      <View style={styles.searchContainer}>
+      <TextInput
+          style={styles.searchInput}
+          placeholder="Tìm kiếm..."
+          placeholderTextColor="#aaa"
+          value={searchText}
+          onChangeText={handleSearch}
+        />
+      </View>
+      <FlatList
+        data={searchText === "" ? groups : filteredGroups} 
+        keyExtractor={(item) => item.groupid.toString()} 
+        renderItem={renderGroup}
+        contentContainerStyle={styles.listContainer}
+      />
+    </View>
   );
 };
 
@@ -146,6 +194,27 @@ const GroupListStack = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  searchContainer: {
+    backgroundColor: "#f0f0f0",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+  searchInput: {
+    backgroundColor: "#fff",
+    height: 40,
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    color: "#333",
+  },
   listContainer: {
     padding: 10,
   },
@@ -180,11 +249,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
+  groupDescription: {
+    fontSize: 14,
+    color: "#555",
+  },
   loadingContainer: {
     flex: 1,
-    alignContent: "center",
-    textAlign: "center",
-    alignSelf: "center",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyContainer: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },

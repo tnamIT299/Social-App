@@ -90,7 +90,6 @@ const Login = ({ navigation }) => {
               return;
             }
             await saveUserData(user.id);
-            Alert.alert("Thông báo", "Đăng nhập thành công!");
             navigation.navigate("TabNavigation");
           } else if (userData.currentDevice !== currentDevice) {
             setError("Tài khoản đang đăng nhập ở thiết bị khác.");

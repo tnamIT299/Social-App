@@ -264,7 +264,7 @@ const ProfileTab = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={{ marginBottom: 30 }}>
+      <ScrollView style={{ marginBottom: 10 }}>
         {loading ? (
           <ActivityIndicator size="large" color="#0000ff" />
         ) : (
@@ -405,6 +405,7 @@ const ProfileTab = () => {
                   <>
                     {isFriendAdded ? ( // Nếu đã gửi lời mời kết bạn
                       <TouchableOpacity style={styles.iconButton} onPress={handleUndo}>
+                        <Ionicons name="arrow-undo-outline" size={24} color="black" />
                         <Text style={styles.buttonText}>Hoàn tác</Text>
                       </TouchableOpacity>
                     ) : (
@@ -497,7 +498,7 @@ const styles = StyleSheet.create({
   },
   headerBack: {
     marginTop: 10,
-    marginBottom: 10,
+    marginBottom: 5,
   },
   profileSection: {
     flex: 1,

@@ -238,7 +238,7 @@ const MessageSummaryTab = () => {
 
       {/* Danh sách tin nhắn */}
       <FlatList
-        data={searchText === "" ? conversations : filteredConversations} // Hiển thị dữ liệu phù hợp
+        data={searchText === "" ? conversations : filteredConversations}
         keyExtractor={(item) =>
           `${item.sender_id}_${item.receiver_id}_${item.created_at}`
         }

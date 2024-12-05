@@ -16,7 +16,7 @@ import {
   DetailProductPost,
   EditProductPostScreen,
 } from "../screens/ProductScreens";
-import { Message,MessageSummary,SettingChat,AddGroup,GroupList } from "../screens/Chat";
+import { Message,MessageSummary,SettingChat,AddGroup,GroupList,GroupMessage,GroupInfor } from "../screens/Chat";
 import { Account,ChangePassword } from "../screens/Account";
 import { CreateReel } from "../screens/Reel";
 
@@ -73,6 +73,8 @@ function Navigation() {
 
         <Stack.Screen name="AddGroup" component={AddGroup} />
         <Stack.Screen name="GroupList" component={GroupList} />
+        <Stack.Screen name="GroupMessage" component={GroupMessage} />
+        <Stack.Screen name="GroupInfor" component={GroupInfor} />
       </Stack.Navigator>
     </NavigationContainer>
   );
