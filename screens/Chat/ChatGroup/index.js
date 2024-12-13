@@ -5,4 +5,5 @@ import GroupInfor from "./GroupInfor";
 import EditGroup from "./EditGroup";
 import MemberGroup from "./MemberGroup";
 import AddMember from "./AddMember";
-export {AddGroup,GroupList,GroupMessage,GroupInfor,EditGroup,MemberGroup, AddMember};
+import SearchMessagesTab from "./SearchMessageGroup";
+export {AddGroup,GroupList,GroupMessage,GroupInfor,EditGroup,MemberGroup, AddMember, SearchMessagesTab};

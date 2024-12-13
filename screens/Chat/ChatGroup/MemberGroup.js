@@ -2,29 +2,27 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
-  TouchableOpacity,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
+  Modal,
+  Dimensions,
   ScrollView,
+  TouchableOpacity,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import Icon from "react-native-vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../../data/supabaseClient";
-import { updateGroupInfor } from "../../../server/GroupService";
-import * as ImagePicker from "expo-image-picker"; // Import ImagePicker
 import { createStackNavigator } from "@react-navigation/stack";
 const Stack = createStackNavigator();
 
 const MemberGroupTab = ({ route }) => {
   const { groupId } = route.params;
+  const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
+  const [modalVisible, setModalVisible] = useState(false);
   const [members, setMembers] = useState([]);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedMember, setSelectedMember] = useState(null);
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -40,9 +38,24 @@ const MemberGroupTab = ({ route }) => {
           return;
         }
 
-        const userIds = participants.map((participant) => participant.Uid);
+        // Lấy user hiện tại
+        const { data: sessionData } = await supabase.auth.getSession();
+        const currentUserId = sessionData?.session?.user?.id;
+
+        if (!currentUserId) {
+          console.error("Không thể xác định user hiện tại.");
+          return;
+        }
+
+        // Lấy vai trò của user hiện tại
+        const currentUser = participants.find(
+          (participant) => participant.Uid === currentUserId
+        );
+
+        setCurrentUserRole(currentUser?.role || "member");
 
         // Lấy thông tin từ bảng User
+        const userIds = participants.map((participant) => participant.Uid);
         const { data: users, error: userError } = await supabase
           .from("User")
           .select("uid, name, avatar")
@@ -59,6 +72,7 @@ const MemberGroupTab = ({ route }) => {
           return {
             name: user?.name || "Unknown",
             avatar: user?.avatar || "https://via.placeholder.com/50",
+            uid: user?.uid,
             role: participant.role,
           };
         });
@@ -73,6 +87,93 @@ const MemberGroupTab = ({ route }) => {
 
     fetchMembers();
   }, [groupId]);
+
+  const handleOpenModal = (event, member) => {
+    const { pageY, pageX } = event.nativeEvent;
+    const windowWidth = Dimensions.get("window").width;
+
+    setModalPosition({
+      top: pageY + 10,
+      right: windowWidth - pageX - 10,
+    });
+    setSelectedMember(member); // Lưu thành viên được chọn
+    setModalVisible(true);
+  };
+
+  const removeMember = async (groupId, userId) => {
+    try {
+      const { error } = await supabase
+        .from("Participant")
+        .delete()
+        .eq("groupid", groupId)
+        .eq("Uid", userId);
+  
+      if (error) {
+        console.error("Lỗi khi xoá thành viên:", error);
+        Alert.alert("Không thể xóa thành viên", error.message);
+        return false;
+      }
+  
+      Alert.alert("Thành công", "Đã xoá thành viên khỏi nhóm");
+      return true;
+    } catch (error) {
+      console.error("Lỗi không mong đợi:", error);
+      Alert.alert("Lỗi không mong đợi", error.message);
+      return false;
+    }
+  };
+  const handleRemoveMember = async (member) => {
+    const confirmed = await new Promise((resolve) =>
+      Alert.alert(
+        "Xác nhận",
+        `Bạn có chắc chắn muốn xóa ${member.name} khỏi nhóm?`,
+        [
+          { text: "Hủy", style: "cancel", onPress: () => resolve(false) },
+          { text: "Xóa", style: "destructive", onPress: () => resolve(true) },
+        ]
+      )
+    );
+  
+    if (confirmed) {
+      const success = await removeMember(groupId, member.uid);
+      if (success) {
+        // Cập nhật lại danh sách thành viên sau khi xóa
+        setMembers((prevMembers) =>
+          prevMembers.filter((m) => m.uid !== member.uid)
+        );
+      }
+    }
+  };
+  
+  
+  const grantAdminRights = async (member) => {
+    try {
+      const { error } = await supabase
+        .from("Participant")
+        .update({ role: "admin" })
+        .eq("groupid", groupId)
+        .eq("Uid", member.uid);
+
+      if (error) {
+        console.error("Lỗi khi cấp quyền admin:", error);
+        Alert.alert("Lỗi", "Không thể cấp quyền quản trị viên.");
+      } else {
+        Alert.alert("Thành công", `${member.name} đã được cấp quyền quản trị viên.`);
+        setModalVisible(false);
+
+        // Cập nhật danh sách thành viên
+        setMembers((prevMembers) =>
+          prevMembers.map((m) =>
+            m.uid === member.uid ? { ...m, role: "admin" } : m
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      Alert.alert("Lỗi", "Đã xảy ra lỗi không mong muốn.");
+    }
+  };
+
 
   if (loading) {
     return (
@@ -93,16 +194,60 @@ const MemberGroupTab = ({ route }) => {
             />
             <View style={styles.memberInfo}>
               <Text style={styles.memberName}>{member.name}</Text>
-              
               <Text style={styles.memberRole}>
                 {member.role === "admin" ? "Quản trị viên" : "Thành viên"}
               </Text>
             </View>
+            {/* Hiển thị icon nếu user hiện tại là admin */}
+            {currentUserRole === "admin" && member.role !== "admin" && (
+              <TouchableOpacity
+                onPress={(event) => handleOpenModal(event, member)}
+              >
+                <Icon
+                  name="ellipsis-vertical-outline"
+                  size={30}
+                  color="black"
+                  style={styles.icon}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         ))
       ) : (
         <Text>Không có thành viên trong nhóm.</Text>
       )}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPressOut={() => setModalVisible(false)}
+        >
+          <View
+            style={[
+              styles.modalContent,
+              { top: modalPosition.top, right: modalPosition.right },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => grantAdminRights(selectedMember)}
+            >
+              <Text style={styles.optionText}>Cấp quyền quản trị viên</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => handleRemoveMember(selectedMember)}
+            >
+              <Text style={styles.optionText}>Xoá khỏi nhóm</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 };
@@ -167,6 +312,28 @@ const styles = StyleSheet.create({
   memberRole: {
     fontSize: 14,
     color: "#666",
+  },
+  modalOverlay: {
+    bottom: 20,
+    flex: 1,
+    justifyContent: "flex-start",
+  },
+  modalContent: {
+    position: "absolute",
+    backgroundColor: "#ddd",
+    padding: 10,
+    borderRadius: 20,
+    width: 190,
+    zIndex: 999,
+  },
+  optionItem: {
+    flexDirection: "row",
+    paddingVertical: 10,
+  },
+  optionText: {
+    color: "black",
+    fontSize: 15,
+    marginLeft: 10,
   },
 });
 

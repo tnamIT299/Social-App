@@ -105,7 +105,7 @@ const Message = ({ route }) => {
   // Đăng ký lắng nghe sự kiện realtime từ bảng messages
   useEffect(() => {
     if (!senderId || !receiverId) return;
-
+  
     const messageChannel = supabase
       .channel("realtime-messages")
       .on(
@@ -113,7 +113,7 @@ const Message = ({ route }) => {
         { event: "INSERT", schema: "public", table: "Message" },
         (payload) => {
           const newMessage = payload.new;
-
+  
           // Chỉ thêm tin nhắn nếu đúng cặp `sender_id` và `receiver_id`
           if (
             (newMessage.sender_id === senderId &&
@@ -131,12 +131,25 @@ const Message = ({ route }) => {
           }
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "Message" },
+        (payload) => {
+          const deletedMessage = payload.old;
+  
+          // Loại bỏ tin nhắn đã bị xóa khỏi danh sách tin nhắn
+          setMessages((prevMessages) =>
+            prevMessages.filter((message) => message.id !== deletedMessage.id)
+          );
+        }
+      )
       .subscribe();
-
+  
     return () => {
       supabase.removeChannel(messageChannel);
     };
   }, [senderId, receiverId]);
+  
 
   // Cuộn đến cuối danh sách khi tin nhắn được tải xong lần đầu tiên
   useEffect(() => {

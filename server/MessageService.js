@@ -68,14 +68,14 @@ export const sendMessageWithImage = async (mesageDetails) => {
 };
 export const deleteMessage = async (id, senderId, uid, fetchMessages) => {
     if (senderId !== uid) {
-      Alert.alert("Lỗi", "Bạn không có quyền xoá tin nhắn này.");
+      Alert.alert("Lỗi", "Bạn không có quyền thu hồi tin nhắn này.");
       return; // Ngừng hành động nếu người dùng không phải là người gửi tin nhắn
     }
   
-    Alert.alert("Xác nhận", "Bạn có chắc muốn xoá tin nhắn này?", [
+    Alert.alert("Xác nhận", "Bạn có chắc muốn thu hồi tin nhắn này?", [
       { text: "Huỷ", style: "cancel" },
       {
-        text: "Xoá",
+        text: "Thu hồi",
         style: "destructive",
         onPress: async () => {
           try {
@@ -85,15 +85,15 @@ export const deleteMessage = async (id, senderId, uid, fetchMessages) => {
               .eq("id", id);
   
             if (error) {
-              console.error("Lỗi xoá tin nhắn:", error);
-              Alert.alert("Lỗi", "Không thể xoá tin nhắn.");
+              console.error("Lỗi thu hồi tin nhắn:", error);
+              Alert.alert("Lỗi", "Không thể thu hồi tin nhắn.");
             } else {
-              Alert.alert("Thành công", "Tin nhắn đã được xoá.");
+              Alert.alert("Thành công", "Tin nhắn đã được thu hồi.");
               await fetchMessages(); // Tải lại tin nhắn
             }
           } catch (err) {
             console.error("Unexpected error:", err);
-            Alert.alert("Lỗi", "Có lỗi xảy ra khi xoá tin nhắn.");
+            Alert.alert("Lỗi", "Có lỗi xảy ra khi thu hồi tin nhắn.");
           }
         },
       },

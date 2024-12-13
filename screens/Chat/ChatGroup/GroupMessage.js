@@ -15,7 +15,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../../data/supabaseClient";
-import { sendMessageWithImage } from "../../../server/GroupMessageService";
+import {
+  sendMessageWithImage,
+  deleteMessage,
+} from "../../../server/GroupMessageService";
 import { getUserId } from "../../../data/getUserData";
 import {
   pickImage,
@@ -35,6 +38,7 @@ const GroupMessage = ({ route }) => {
   const navigation = useNavigation();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [userId, setUserId] = useState("");
   const [senderId, setSenderId] = useState("");
   const [selectedImages, setSelectedImages] = useState([]);
   const [senderNames, setSenderNames] = useState({}); // State để lưu tên người gửi theo sender_id
@@ -44,39 +48,40 @@ const GroupMessage = ({ route }) => {
     const fetchUserId = async () => {
       const userId = await getUserId();
       setSenderId(userId);
+      setUserId(userId);
     };
     fetchUserId();
   }, []);
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (!groupId) return;
+  const fetchMessages = async () => {
+    if (!groupId) return;
 
-      try {
-        const { data, error } = await supabase
-          .from("GroupMessage")
-          .select("*")
-          .eq("groupid", groupId)
-          .order("timestamp", { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from("GroupMessage")
+        .select("*")
+        .eq("groupid", groupId)
+        .order("timestamp", { ascending: true });
 
-        if (error) {
-          console.error("Error fetching group messages:", error);
-          return;
-        }
-
-        setMessages(data);
-      } catch (error) {
-        console.error("Unexpected error fetching messages:", error);
+      if (error) {
+        console.error("Error fetching group messages:", error);
+        return;
       }
-    };
 
+      setMessages(data);
+    } catch (error) {
+      console.error("Unexpected error fetching messages:", error);
+    }
+  };
+
+  useEffect(() => {
     fetchMessages();
   }, [groupId]);
 
   // Hook lắng nghe realtime tin nhắn mới
   useEffect(() => {
     if (!senderId || !groupId) return;
-
+  
     const messageChannel = supabase
       .channel("realtime-group-messages")
       .on(
@@ -84,7 +89,7 @@ const GroupMessage = ({ route }) => {
         { event: "INSERT", schema: "public", table: "GroupMessage" },
         (payload) => {
           const newMessage = payload.new;
-
+  
           if (newMessage.groupid === groupId) {
             setMessages((prevMessages) => {
               const updatedMessages = [...prevMessages, newMessage].sort(
@@ -92,17 +97,31 @@ const GroupMessage = ({ route }) => {
               );
               return updatedMessages;
             });
-
+  
             flatListRef.current?.scrollToEnd({ animated: true });
           }
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "GroupMessage" },
+        (payload) => {
+          const deletedMessage = payload.old;
+  
+          if (deletedMessage.groupid === groupId) {
+            setMessages((prevMessages) =>
+              prevMessages.filter((message) => message.id !== deletedMessage.id)
+            );
+          }
+        }
+      )
       .subscribe();
-
+  
     return () => {
       supabase.removeChannel(messageChannel);
     };
   }, [senderId, groupId]);
+  
 
   // Lấy tên người gửi (sender_name) từ bảng User khi tin nhắn được tải
   useEffect(() => {
@@ -141,7 +160,13 @@ const GroupMessage = ({ route }) => {
     const formattedTime = dayjs(item.timestamp).fromNow();
 
     return (
-      <TouchableOpacity delayLongPress={500} activeOpacity={0.7}>
+      <TouchableOpacity
+        onLongPress={() =>
+          deleteMessage(item.id, item.sender_id, userId, fetchMessages)
+        }
+        delayLongPress={500}
+        activeOpacity={0.7}
+      >
         <View
           style={[
             styles.messageContainer,
@@ -289,14 +314,6 @@ const GroupMessage = ({ route }) => {
           <View style={styles.headerIcons}>
             <TouchableOpacity>
               <Icon
-                name="person-add-outline"
-                size={30}
-                color="black"
-                style={styles.icon}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity>
-              <Icon
                 name="videocam-outline"
                 size={30}
                 color="black"
@@ -308,7 +325,7 @@ const GroupMessage = ({ route }) => {
                 navigation.navigate("GroupInfor", {
                   screen: "GroupInforTab",
                   params: {
-                    groupIcon:groupIcon,
+                    groupIcon: groupIcon,
                     groupName: groupName,
                     groupId: groupId,
                   },

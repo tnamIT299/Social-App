@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   },
   headerIcons: {
     flexDirection: "row",
-    flex: 0.8,
+    flex: 0.4,
   },
   icon: {
     marginHorizontal: 10,
