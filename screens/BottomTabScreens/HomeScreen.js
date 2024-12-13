@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { getUserId } from "../../data/getUserData";
+import { getUserId, getUserAvatar } from "../../data/getUserData";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../../data/supabaseClient";
 import PostScreen from "../PostScreens/PostScreen";
@@ -38,35 +38,17 @@ const HomeScreen = () => {
   const [avatarUrl, setAvatarUrl] = useState(null);
 
   useEffect(() => {
-    const fetchUserAvatar = async () => {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        console.error("Error fetching user:", userError);
-        return;
-      }
-
-      const Id = await getUserId();
-      setUserId(Id);
-
-      if (user) {
-        const { data, error } = await supabase
-          .from("User")
-          .select("avatar")
-          .eq("uid", user.id)
-          .single();
-
-        if (error) {
-          console.error("Error fetching user data: ", error);
-        } else {
-          setAvatarUrl(data.avatar); // Lưu URL avatar vào state
-        }
+    const fetchUserData = async () => {
+      try {
+        const avatar = await getUserAvatar();
+        const userId = await getUserId();
+        setUserId(userId);
+        setAvatarUrl(avatar || "https://via.placeholder.com/150"); 
+      } catch (error) {
+        console.error("Lỗi khi lấy dữ liệu người dùng:", error);
       }
     };
-    fetchUserAvatar();
+    fetchUserData();
   }, []);
 
   const handleSearchUser = () => {
