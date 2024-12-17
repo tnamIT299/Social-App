@@ -17,7 +17,7 @@ import {
   SentInvitationItem,
 } from "../FriendScreens";
 
-const FriendsScreen = () => {
+const FriendsScreen = ({route}) => {
   const [activeSection, setActiveSection] = useState("requests"); // Trạng thái mặc định là 'requests'
   const [requests, setRequests] = useState([]);
   const [suggestions, setSuggestions] = useState([]);

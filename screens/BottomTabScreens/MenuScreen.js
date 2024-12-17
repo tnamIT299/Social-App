@@ -136,9 +136,9 @@ const MenuScreen = ({ navigation }) => {
       </TouchableOpacity>
       <ScrollView>
         {/* Danh sách mục menu */}
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate("FriendsScreen")}>
           <Ionicons name="people-outline" size={24} color="#0066ff" />
-          <Text style={styles.menuText}>Danh sách bạn bè</Text>
+          <Text style={styles.menuText}>Bạn bè</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem}>
@@ -146,7 +146,7 @@ const MenuScreen = ({ navigation }) => {
           <Text style={styles.menuText}>Bài viết đã lưu</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate("MarketplaceScreen")}>
           <MaterialIcons name="storefront" size={24} color="#0066ff" />
           <Text style={styles.menuText}>Marketplace</Text>
         </TouchableOpacity>

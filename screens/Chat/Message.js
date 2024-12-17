@@ -32,6 +32,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { unblockUser } from "./BlockFn";
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
@@ -48,6 +49,16 @@ const Message = ({ route }) => {
   const [selectedImages, setSelectedImages] = useState([]);
   const [themeColor, setThemeColor] = useState("#a0e7ff");
   const flatListRef = useRef(null);
+  const [isBlocked, setIsBlocked] = useState(false);
+
+  useEffect(() => {
+    const checkBlockStatus = async () => {
+      const allowed = await canSend(senderId, receiverId);
+      setIsBlocked(!allowed);
+    };
+
+    checkBlockStatus();
+  }, [senderId, receiverId]);
 
   // Lấy senderId từ getUserId khi component mount
   useEffect(() => {
@@ -105,7 +116,7 @@ const Message = ({ route }) => {
   // Đăng ký lắng nghe sự kiện realtime từ bảng messages
   useEffect(() => {
     if (!senderId || !receiverId) return;
-  
+
     const messageChannel = supabase
       .channel("realtime-messages")
       .on(
@@ -113,7 +124,7 @@ const Message = ({ route }) => {
         { event: "INSERT", schema: "public", table: "Message" },
         (payload) => {
           const newMessage = payload.new;
-  
+
           // Chỉ thêm tin nhắn nếu đúng cặp `sender_id` và `receiver_id`
           if (
             (newMessage.sender_id === senderId &&
@@ -136,7 +147,7 @@ const Message = ({ route }) => {
         { event: "DELETE", schema: "public", table: "Message" },
         (payload) => {
           const deletedMessage = payload.old;
-  
+
           // Loại bỏ tin nhắn đã bị xóa khỏi danh sách tin nhắn
           setMessages((prevMessages) =>
             prevMessages.filter((message) => message.id !== deletedMessage.id)
@@ -144,12 +155,11 @@ const Message = ({ route }) => {
         }
       )
       .subscribe();
-  
+
     return () => {
       supabase.removeChannel(messageChannel);
     };
   }, [senderId, receiverId]);
-  
 
   // Cuộn đến cuối danh sách khi tin nhắn được tải xong lần đầu tiên
   useEffect(() => {
@@ -188,9 +198,48 @@ const Message = ({ route }) => {
     return localDate.toISOString();
   };
 
+  const handleUnblock = async () => {
+    const success = await unblockUser(senderId, receiverId);
+    if (success) {
+      setIsBlocked(false);
+    }
+  };
+  const canSend = async (senderId, receiverId) => {
+    try {
+      const { data, error } = await supabase
+        .from("BlockedList")
+        .select("*")
+        .or(
+          `and(blocker_id.eq.${senderId},blocked_id.eq.${receiverId}),and(blocker_id.eq.${receiverId},blocked_id.eq.${senderId})`
+        );
+
+      if (error) {
+        console.error("Error checking block status:", error);
+        return false;
+      }
+
+      console.log("BlockedList data:", data); // Kiểm tra dữ liệu trả về
+
+      return data.length === 0; // Nếu mảng rỗng, không bị chặn
+    } catch (err) {
+      console.error("Unexpected error in canSend:", err);
+      return false;
+    }
+  };
+
   const sendMessage = async () => {
     try {
-      // Kiểm tra nếu tin nhắn văn bản không rỗng và không có hình ảnh
+      // Kiểm tra quyền gửi tin nhắn
+      const isAllowed = await canSend(senderId, receiverId);
+      if (!isAllowed) {
+        Alert.alert(
+          "Đã chặn",
+          "Bạn không thể gửi tin nhắn cho người dùng này."
+        );
+        return; // Dừng hàm nếu không được phép gửi
+      }
+
+      // Gửi tin nhắn văn bản
       if (
         newMessage.trim() !== "" &&
         (!selectedImages || selectedImages.length === 0)
@@ -209,43 +258,8 @@ const Message = ({ route }) => {
           return Alert.alert("Error", "Failed to send text message");
         }
 
-        setNewMessage(""); // Reset nội dung tin nhắn sau khi gửi thành công
-        return; // Kết thúc hàm nếu chỉ gửi tin nhắn văn bản
-      }
-
-      // Kiểm tra nếu có hình ảnh
-      if (selectedImages && selectedImages.length > 0) {
-        const messageDetails = {
-          sender_id: senderId,
-          receiver_id: receiverId,
-          image_url: selectedImages,
-          created_at: getLocalISOString(),
-        };
-
-        // Gửi tin nhắn với hình ảnh
-        const success = await sendMessageWithImage(messageDetails);
-        if (!success) {
-          return Alert.alert("Error", "Error sending message with image");
-        }
-      }
-
-      // Nếu có cả tin nhắn văn bản và hình ảnh, gửi cả hai
-      if (newMessage.trim() !== "") {
-        const { error } = await supabase.from("Message").insert([
-          {
-            sender_id: senderId,
-            receiver_id: receiverId,
-            content: newMessage,
-            created_at: getLocalISOString(),
-          },
-        ]);
-
-        if (error) {
-          console.error("Error sending text message:", error);
-          return Alert.alert("Error", "Failed to send text message");
-        }
-
-        setNewMessage(""); // Reset nội dung tin nhắn sau khi gửi thành công
+        setNewMessage("");
+        return;
       }
     } catch (error) {
       console.error("Unexpected error:", error);
@@ -372,6 +386,8 @@ const Message = ({ route }) => {
                     avatar: avatar,
                     name: name,
                     uid: uid,
+                    receiverId: receiverId,
+                    senderId: senderId,
                   },
                 })
               }
@@ -446,33 +462,53 @@ const Message = ({ route }) => {
           </View>
         )}
 
-        <View style={styles.inputContainer}>
-          <TextInput
-            placeholder="Enter your message..."
-            value={newMessage}
-            onChangeText={setNewMessage}
-            style={styles.input}
-          />
-
-          <TouchableOpacity
-            onPress={() =>
-              pickImage(
-                () => launchGallery(setSelectedImages, selectedImages),
-                () => launchCamera(setSelectedImages, selectedImages)
-              )
-            }
-          >
-            <Icon
-              name="add-circle"
-              size={30}
-              color="blue"
-              style={styles.iconSend}
+        {!isBlocked && (
+          <View style={styles.inputContainer}>
+            <TextInput
+              placeholder="Enter your message..."
+              value={newMessage}
+              onChangeText={setNewMessage}
+              style={styles.input}
             />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={sendMessage}>
-            <Icon name="send" size={30} color="blue" style={styles.iconSend} />
-          </TouchableOpacity>
-        </View>
+
+            <TouchableOpacity
+              onPress={() =>
+                pickImage(
+                  () => launchGallery(setSelectedImages, selectedImages),
+                  () => launchCamera(setSelectedImages, selectedImages)
+                )
+              }
+            >
+              <Icon
+                name="add-circle"
+                size={30}
+                color="blue"
+                style={styles.iconSend}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={sendMessage}>
+              <Icon
+                name="send"
+                size={30}
+                color="blue"
+                style={styles.iconSend}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Thông báo trạng thái block */}
+        {isBlocked && (
+          <View style={styles.blockedMessageContainer}>
+            <Text style={styles.blockedText}>
+              Bạn không thể gửi tin nhắn cho người này.
+            </Text>
+            <TouchableOpacity style={styles.unblockButton} onPress={handleUnblock}>
+              <Text style={styles.unblockText}>Bỏ chặn</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
     </KeyboardAvoidingView>
   );

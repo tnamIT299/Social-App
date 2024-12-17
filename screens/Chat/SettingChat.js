@@ -6,21 +6,59 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Alert,
   TouchableWithoutFeedback,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Icon from "react-native-vector-icons/Ionicons";
 import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
 import { createStackNavigator } from "@react-navigation/stack";
-import {handleColorChange} from "../../cache/cacheColor"
-
+import { handleColorChange } from "../../cache/cacheColor";
+import { supabase } from "../../data/supabaseClient";
+import { blockUser, unblockUser } from "./BlockFn";
 const Stack = createStackNavigator();
 
 const SettingChatTab = ({ route, navigation }) => {
-  const { avatar, name, uid } = route.params;
+  const { avatar, name, uid, receiverId, senderId } = route.params;
   const [isModalVisible, setModalVisible] = useState(false);
-  const [selectedColor, setSelectedColor] = useState("#a0e7ff"); // Default color
+  const [selectedColor, setSelectedColor] = useState("#a0e7ff");
+  const [isBlocked, setIsBlocked] = useState(false);
 
+  useEffect(() => {
+    const checkIfBlocked = async () => {
+      const { data, error } = await supabase
+        .from("BlockedList")
+        .select("id")
+        .eq("blocker_id", senderId)
+        .eq("blocked_id", receiverId)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Lỗi kiểm tra trạng thái chặn:", error);
+      } else {
+        setIsBlocked(!!data); // Nếu có dữ liệu thì set là true
+      }
+    };
+
+    checkIfBlocked();
+  }, [senderId, receiverId]);
+
+  const toggleBlock = async () => {
+    if (isBlocked) {
+      // Bỏ chặn
+      const success = await unblockUser(senderId, receiverId);
+      if (success) {
+        setIsBlocked(false);
+      }
+    } else {
+      // Chặn
+      const success = await blockUser(senderId, receiverId);
+      if (success) {
+        setIsBlocked(true);
+        Alert.alert("Thành công", "Đã chặn người dùng.");
+      }
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -57,7 +95,10 @@ const SettingChatTab = ({ route, navigation }) => {
       {/* Customization Section */}
       <View style={styles.customizationSection}>
         <Text style={styles.sectionTitle}>Tuỳ chỉnh</Text>
-        <TouchableOpacity style={styles.option} onPress={() => setModalVisible(true)}>
+        <TouchableOpacity
+          style={styles.option}
+          onPress={() => setModalVisible(true)}
+        >
           <FontAwesome6 name="palette" size={24} color="black" />
           <Text style={styles.optionText}>Chủ đề</Text>
         </TouchableOpacity>
@@ -70,49 +111,69 @@ const SettingChatTab = ({ route, navigation }) => {
       {/* Other Actions */}
       <View style={styles.otherActions}>
         <Text style={styles.sectionTitle}>Hành động khác</Text>
-        <TouchableOpacity style={styles.option}>
-          <FontAwesome6 name="user-group" size={24} color="black" />
-          <Text style={styles.optionText}>Tạo nhóm chat với {name}</Text>
+        <TouchableOpacity
+          style={styles.option}
+          onPress={() =>
+            navigation.navigate("SearchMessage", { receiverId, senderId })
+          }
+        >
+          <FontAwesome6 name="magnifying-glass" size={24} color="black" />
+          <Text style={styles.optionText}>Tìm kiếm tin nhắn</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.option}>
           <FontAwesome6 name="trash" size={24} color="black" />
-          <Text style={styles.optionTextDelete}>Xoá toàn bộ cuộc hội thoại</Text>
+          <Text style={styles.optionTextDelete}>
+            Xoá toàn bộ cuộc hội thoại
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.option}>
-          <FontAwesome6 name="user-slash" size={24} color="black" />
-          <Text style={styles.optionTextDelete}>Chặn</Text>
+        <TouchableOpacity style={styles.option} onPress={toggleBlock}>
+          <FontAwesome6
+            name={isBlocked ? "user-check" : "user-slash"}
+            size={24}
+            color="black"
+          />
+          <Text style={isBlocked ? styles.optionText : styles.optionTextDelete}>
+            {isBlocked ? "Bỏ chặn" : "Chặn"}
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Color Selection Modal */}
       <Modal visible={isModalVisible} transparent={true} animationType="fade">
-      <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-        <View style={styles.modalBackground}>
-          <View style={styles.colorOptionsContainer}>
-            <Text style={styles.modalTitle}>Chọn chủ đề</Text>
-            <View style={styles.colorOptions}>
-              {["#FF5733", "#33FF57", "#3357FF", "#FF33A1", "#A1FF33","#A0E7FF"].map((color, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[styles.colorOption, { backgroundColor: color }]}
-                  onPress={() =>
-                    handleColorChange(
-                      color,
-                      setSelectedColor,
-                      setModalVisible,
-                      navigation,
-                      uid,
-                      avatar, 
-                      name 
-                    )
-                  }
-                />
-              ))}
+        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+          <View style={styles.modalBackground}>
+            <View style={styles.colorOptionsContainer}>
+              <Text style={styles.modalTitle}>Chọn chủ đề</Text>
+              <View style={styles.colorOptions}>
+                {[
+                  "#FF5733",
+                  "#33FF57",
+                  "#3357FF",
+                  "#FF33A1",
+                  "#A1FF33",
+                  "#A0E7FF",
+                ].map((color, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.colorOption, { backgroundColor: color }]}
+                    onPress={() =>
+                      handleColorChange(
+                        color,
+                        setSelectedColor,
+                        setModalVisible,
+                        navigation,
+                        uid,
+                        avatar,
+                        name
+                      )
+                    }
+                  />
+                ))}
+              </View>
             </View>
           </View>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+        </TouchableWithoutFeedback>
+      </Modal>
     </ScrollView>
   );
 };
