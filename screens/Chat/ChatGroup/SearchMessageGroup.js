@@ -109,14 +109,14 @@ const SearchMessagesTab = ({ route }) => {
     <SafeAreaView style={styles.container}>
       {/* Thanh tìm kiếm */}
       <View style={styles.searchContainer}>
-      <Icon name="chevron-back-outline" onPress={navigation.goBack} size={24} color="#aaa" style={styles.backIcon} />
+      <Icon name="chevron-back-outline" onPress={navigation.goBack} size={24} color="#000" style={styles.backIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Tìm kiếm tin nhắn..."
           value={searchText}
           onChangeText={handleSearch}
         />
-        <Icon name="search" size={24} color="#aaa" style={styles.searchIcon} />
+        <Icon name="search" size={24} color="#000" style={styles.searchIcon} />
       </View>
 
       {/* Danh sách tin nhắn */}
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#2F95DC",
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderBottomWidth: 1,

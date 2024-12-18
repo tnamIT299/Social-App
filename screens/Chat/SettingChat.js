@@ -1,14 +1,4 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  Alert,
-  TouchableWithoutFeedback,
-} from "react-native";
+import {View,Text,StyleSheet,Image,TouchableOpacity,ScrollView,Modal,Alert,TouchableWithoutFeedback} from "react-native";
 import React, { useState, useEffect } from "react";
 import Icon from "react-native-vector-icons/Ionicons";
 import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
@@ -101,10 +91,6 @@ const SettingChatTab = ({ route, navigation }) => {
         >
           <FontAwesome6 name="palette" size={24} color="black" />
           <Text style={styles.optionText}>Chủ đề</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.option}>
-          <FontAwesome6 name="a" size={24} color="black" />
-          <Text style={styles.optionText}>Biệt danh</Text>
         </TouchableOpacity>
       </View>
 
@@ -260,7 +246,7 @@ const styles = StyleSheet.create({
     marginStart: 10,
   },
   optionTextDelete: {
-    color: "red",
+    color: "#000",
     fontSize: 18,
     marginStart: 10,
   },

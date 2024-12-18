@@ -33,6 +33,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { unblockUser } from "./BlockFn";
+import { getLocalISOString } from "../../server/MessageService";
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
@@ -190,13 +191,6 @@ const Message = ({ route }) => {
 
     loadThemeColor();
   }, [paramThemeColor]);
-
-  // Hàm lấy thời gian theo múi giờ địa phương
-  const getLocalISOString = () => {
-    const localTimeOffset = 7 * 60 * 60 * 1000; // Chênh lệch múi giờ UTC+7
-    const localDate = new Date(new Date().getTime() + localTimeOffset);
-    return localDate.toISOString();
-  };
 
   const handleUnblock = async () => {
     const success = await unblockUser(senderId, receiverId);
@@ -359,11 +353,13 @@ const Message = ({ route }) => {
           <Image source={{ uri: avatar }} style={styles.headerAvatar} />
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>{name}</Text>
-            <Text style={styles.lastActiveText}>
+            {!isBlocked && (
+              <Text style={styles.lastActiveText}>
               {onlinestatus === "online"
                 ? "Đang hoạt động"
                 : `Hoạt động ${dayjs(lastOnline).fromNow()}`}
             </Text>
+            )}
           </View>
           <View style={styles.headerIcons}>
             <Icon
@@ -504,7 +500,10 @@ const Message = ({ route }) => {
             <Text style={styles.blockedText}>
               Bạn không thể gửi tin nhắn cho người này.
             </Text>
-            <TouchableOpacity style={styles.unblockButton} onPress={handleUnblock}>
+            <TouchableOpacity
+              style={styles.unblockButton}
+              onPress={handleUnblock}
+            >
               <Text style={styles.unblockText}>Bỏ chặn</Text>
             </TouchableOpacity>
           </View>

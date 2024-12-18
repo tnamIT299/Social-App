@@ -107,7 +107,7 @@ const fileNameFromUri = (uri) => {
   return parts[parts.length - 1];
 };
 
-const getLocalISOString = () => {
+export const getLocalISOString = () => {
   const localTimeOffset = 7 * 60 * 60 * 1000; // Chênh lệch múi giờ UTC+7
   const localDate = new Date(new Date().getTime() + localTimeOffset);
   return localDate.toISOString();
