@@ -286,40 +286,52 @@ const PostDetailScreen = () => {
                   {post.pdesc && (
                     <Text style={styles.postDesc}>{post.pdesc}</Text>
                   )}
-                  {post.pimage && (
-                    <ScrollView contentContainerStyle={styles.containerImage}>
-                      <View style={styles.gridContainer}>
-                        {post.pimage &&
-                        Array.isArray(JSON.parse(post.pimage)) ? (
-                          JSON.parse(post.pimage).length === 1 ? (
-                            <Image
-                              key={0}
-                              source={{ uri: JSON.parse(post.pimage)[0] }}
-                              style={styles.postImage}
-                            />
-                          ) : (
-                            <Swiper
-                              loop={true}
-                              autoplay={false}
-                              showsButtons={false}
-                              style={styles.wrapper}
-                            >
-                              {JSON.parse(post.pimage).map((item, index) => (
-                                <View key={index} style={styles.slide}>
-                                  <Image
-                                    source={{ uri: item }}
-                                    style={styles.image}
-                                  />
-                                </View>
-                              ))}
-                            </Swiper>
-                          )
-                        ) : (
-                          <Text>Không có hình ảnh nào</Text>
-                        )}
-                      </View>
-                    </ScrollView>
-                  )}
+
+                  {post.pimage &&
+                    (() => {
+                      let images = [];
+                      try {
+                        // Parse pimage và kiểm tra xem có phải mảng hợp lệ không
+                        images = JSON.parse(post.pimage);
+                        if (!Array.isArray(images) || images.length === 0)
+                          return null; // Không hiển thị nếu không có ảnh
+                      } catch (e) {
+                        console.error("Lỗi khi parse pimage:", e.message);
+                        return null; // Không hiển thị nếu parse lỗi
+                      }
+
+                      return (
+                        <ScrollView
+                          contentContainerStyle={styles.containerImage}
+                        >
+                          <View style={styles.gridContainer}>
+                            {images.length === 1 ? (
+                              <Image
+                                key={0}
+                                source={{ uri: images[0] }}
+                                style={styles.postImage}
+                              />
+                            ) : (
+                              <Swiper
+                                loop={true}
+                                autoplay={false}
+                                showsButtons={false}
+                                style={styles.wrapper}
+                              >
+                                {images.map((item, index) => (
+                                  <View key={index} style={styles.slide}>
+                                    <Image
+                                      source={{ uri: item }}
+                                      style={styles.image}
+                                    />
+                                  </View>
+                                ))}
+                              </Swiper>
+                            )}
+                          </View>
+                        </ScrollView>
+                      );
+                    })()}
                 </>
               ) : null}
               <View style={styles.cardStats}>
@@ -371,6 +383,19 @@ const PostDetailScreen = () => {
                   </TouchableOpacity>
                 </View>
               </View>
+            </View>
+
+            {/* Khung nhập bình luận */}
+            <View style={styles.commentBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Viết bình luận..."
+                value={newComment}
+                onChangeText={setNewComment}
+              />
+              <TouchableOpacity onPress={handleComment}>
+                <Ionicons name="send" size={30} color="black" />
+              </TouchableOpacity>
             </View>
 
             {/* Comments */}
@@ -427,19 +452,6 @@ const PostDetailScreen = () => {
                 </View>
               )}
             </View>
-
-            {/* Khung nhập bình luận */}
-            <View style={styles.commentBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Viết bình luận..."
-                value={newComment}
-                onChangeText={setNewComment}
-              />
-              <TouchableOpacity onPress={handleComment}>
-                <Ionicons name="send" size={30} color="black" />
-              </TouchableOpacity>
-            </View>
           </ScrollView>
         )}
       </SafeAreaView>
@@ -471,6 +483,7 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     flexDirection: "column",
+    flex: 1,
   },
   userInfo: {
     flexDirection: "column",
@@ -589,7 +602,7 @@ const styles = StyleSheet.create({
   backButtonContainer: {
     position: "static",
     flexDirection: "row",
-    backgroundColor: "#bbb",
+    backgroundColor: "#2F95DC",
     padding: 15,
   },
   titleview: {
@@ -605,6 +618,7 @@ const styles = StyleSheet.create({
   commentBox: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 15,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderTopWidth: 1,
@@ -621,6 +635,7 @@ const styles = StyleSheet.create({
     height: 40,
     backgroundColor: "#f9f9f9", // Màu nền của khung nhập liệu
   },
+
   contentContainer: {
     flexDirection: "column",
     flex: 1,

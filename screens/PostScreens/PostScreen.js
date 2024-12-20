@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   View,
@@ -26,6 +26,7 @@ import { getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
 import Swiper from "react-native-swiper";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { handleSharePost } from "../../server/PostService";
 import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -47,6 +48,19 @@ const PostScreen = ({
   const [showCommentSection, setShowCommentSection] = useState(null); // Lưu trữ postId đang hiển thị bình luận
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
+  const [uid, setUId] = useState("");
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const id = await getUserId();
+        setUId(id);
+      } catch (error) {
+        setError(error.message);
+      }
+    };
+
+    fetchUserId();
+  }, []);
 
   const toggleCommentSection = async (postId) => {
     setShowCommentSection((prevPostId) =>
@@ -93,7 +107,54 @@ const PostScreen = ({
                             style={styles.userAvatar}
                           />
                         )}
-                        <Text style={{ flex: 1 }}>{post.user?.name}</Text>
+                        <Text style={{ flex: 1, fontSize: 16 }}>
+                          {/* Hiển thị tên người chia sẻ */}
+        
+                            <Text onPress={() =>
+                              navigation.navigate("Profile", {
+                                screen: "ProfileTab",
+                                params: {
+                                  userId: post.user?.uid,
+                                },
+                              })
+                            }
+                              style={{
+                                color: "#000",
+                                fontWeight: "bold",
+                                fontSize: 16,
+                              }}
+                            >
+                              {post.user?.name || "Người dùng ẩn"}
+                            </Text>{" "}
+                          {/* Nếu có bài viết gốc, hiển thị thông tin người đăng bài gốc */}
+                          {post.original_post?.user ? (
+                            <>
+                              <Text style={{ fontSize: 16 }}>
+                                đã chia sẻ lại bài viết từ{" "}
+                              </Text>
+
+                              <Text
+                                onPress={() =>
+                                  navigation.navigate("Profile", {
+                                    screen: "ProfileTab",
+                                    params: {
+                                      userId: post.original_post.user.uid,
+                                    },
+                                  })
+                                }
+                                style={{
+                                  color: "#000",
+                                  fontWeight: "bold",
+                                  fontSize: 16,
+                                }}
+                              >
+                                {post.original_post.user.name ||
+                                  "Người dùng ẩn"}
+                              </Text>
+                            </>
+                          ) : null}
+                        </Text>
+
                         <PostOptions
                           style={{ flex: 0.1 }}
                           postId={post.pid}
@@ -117,6 +178,7 @@ const PostScreen = ({
                         />
                       </View>
                     </View>
+
                     <View style={styles.posttimeView}>
                       <Text style={styles.posttimeText}>
                         {dayjs(post.createdat).fromNow()}
@@ -152,9 +214,7 @@ const PostScreen = ({
                                 ))}
                               </Swiper>
                             )
-                          ) : (
-                            <Text>Không có hình ảnh nào</Text>
-                          )}
+                          ) : null}
                         </View>
                       </View>
                     )}
@@ -204,10 +264,12 @@ const PostScreen = ({
                     </View>
                     <View style={styles.statRow}>
                       <Text style={styles.statText}>{post.pshare} chia sẻ</Text>
+
                       <TouchableOpacity
                         style={styles.actionButton}
-                        // onPress={handleShare} // Thêm logic chia sẻ nếu cần
-                      >
+                        onPress={() =>
+                          handleSharePost(post.pid, uid, setPosts, setError)
+                        }>
                         <Ionicons
                           name="share-social-outline"
                           size={16}

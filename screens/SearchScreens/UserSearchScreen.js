@@ -10,7 +10,7 @@ import {
   Image,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { getUserName, getUserAvatar } from "../../data/getUserData";
+import {getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
 import { Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons";
 import { supabase } from "../../data/supabaseClient"; // Giả định bạn đã cấu hình Supabase client
 import {
@@ -41,17 +41,7 @@ const UserSearchScreen = () => {
 
   const fetchUsers = async (query) => {
     try {
-      // Lấy dữ liệu người dùng hiện tại
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-
-      const currentUserId = sessionData?.session?.user?.id;
-      if (!currentUserId) {
-        console.error("Người dùng hiện tại không tồn tại.");
-        return;
-      }
-
+      const currentUserId = await getUserId();
       // Lấy thông tin người dùng hiện tại
       const Name = await getUserName();
       setUserName(Name);
@@ -146,7 +136,7 @@ const UserSearchScreen = () => {
 
       // Cập nhật danh sách người dùng lên UI
       setUsers(results);
-
+      console.log(users.length);
       // Phân loại người dùng
       const friends = results.filter((user) => user.relationship === "friend");
       const pending = pendingRequests.map((request) => ({
