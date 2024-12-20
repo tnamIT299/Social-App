@@ -11,8 +11,14 @@ import {
 } from "react-native";
 import { getUserId, getUserAvatar, getUserName } from "../../data/getUserData";
 import { useNavigation } from "@react-navigation/native";
+<<<<<<< HEAD
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../data/supabaseClient"; // Make sure you have the correct supabase client
+=======
+import {getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
+import { Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons";
+import { supabase } from "../../data/supabaseClient"; // Giả định bạn đã cấu hình Supabase client
+>>>>>>> e36339e109f4e5d249a93e9e40cea54976d3751e
 import {
   FriendSuggestion,
   SentInvitationItem,
@@ -69,12 +75,21 @@ const UserSearchScreen = () => {
 
   const fetchUsers = async (query, isMounted) => {
     try {
+<<<<<<< HEAD
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
+=======
+      const currentUserId = await getUserId();
+      // Lấy thông tin người dùng hiện tại
+      const Name = await getUserName();
+      setUserName(Name);
+      const Avatar = await getUserAvatar();
+      setUserAvatar(Avatar);
+>>>>>>> e36339e109f4e5d249a93e9e40cea54976d3751e
 
       const userData = await fetchUserData(query, controller.signal);
 
@@ -89,6 +104,108 @@ const UserSearchScreen = () => {
       if (isMounted) {
         updateUserState(results, relationships);
       }
+<<<<<<< HEAD
+=======
+
+      // Kiểm tra nếu kết quả tìm kiếm chỉ có một người và đó là chính bạn
+      if (userData.length === 1 && userData[0].uid === currentUserId) {
+        setUsers([
+          {
+            id: userData[0].uid,
+            name: userData[0].name,
+            avatar: userData[0].avatar || "https://via.placeholder.com/150",
+            relationship: "self",
+          },
+        ]);
+        return;
+      }
+
+      // Lấy danh sách bạn bè và các yêu cầu kết bạn (cả người gửi và người nhận)
+      const { data: friendships, error: friendshipsError } = await supabase
+        .from("Friendship")
+        .select("requester_id, receiver_id, status")
+        .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+      if (friendshipsError) throw friendshipsError;
+
+      // Lấy danh sách những người đã gửi lời mời kết bạn đến người dùng hiện tại
+      const { data: pendingRequests, error: pendingRequestsError } =
+        await supabase
+          .from("Friendship")
+          .select("requester_id, User!requester_id(uid, name, avatar)")
+          .eq("receiver_id", currentUserId)
+          .eq("status", "pending");
+
+      if (pendingRequestsError) throw pendingRequestsError;
+
+      // Lấy danh sách những người dùng hiện tại đã gửi lời mời kết bạn
+      const { data: sentRequests, error: sentRequestsError } = await supabase
+        .from("Friendship")
+        .select("receiver_id, User!receiver_id(uid, name, avatar)")
+        .eq("requester_id", currentUserId)
+        .eq("status", "pending");
+
+      if (sentRequestsError) throw sentRequestsError;
+
+      // Tạo danh sách ID đã gửi và nhận lời mời
+      const pendingRequestIds = pendingRequests.map(
+        (request) => request.requester_id
+      );
+      const sentRequestIds = sentRequests.map((request) => request.receiver_id);
+
+      // Phân loại người dùng theo mối quan hệ
+      const results = userData.map((user) => {
+        // Kiểm tra xem người dùng có phải bạn bè không (status "accepted")
+        const isFriend = friendships.some(
+          (friend) =>
+            friend.status === "accepted" &&
+            ((friend.requester_id === user.uid &&
+              friend.receiver_id === currentUserId) ||
+              (friend.receiver_id === user.uid &&
+                friend.requester_id === currentUserId))
+        );
+
+        const isPending = pendingRequestIds.includes(user.uid);
+        const isSentInvitation = sentRequestIds.includes(user.uid);
+
+        return {
+          id: user.uid,
+          name: user.name,
+          avatar: user.avatar || "https://via.placeholder.com/150",
+          relationship: isFriend
+            ? "friend"
+            : isPending
+            ? "pending"
+            : isSentInvitation
+            ? "sent"
+            : "none",
+        };
+      });
+
+      // Cập nhật danh sách người dùng lên UI
+      setUsers(results);
+      console.log(users.length);
+      // Phân loại người dùng
+      const friends = results.filter((user) => user.relationship === "friend");
+      const pending = pendingRequests.map((request) => ({
+        id: request.requester_id,
+        name: request.User.name,
+        avatar: request.User.avatar || "https://via.placeholder.com/150",
+      }));
+      const sent = sentRequests.map((request) => ({
+        id: request.receiver_id,
+        name: request.User.name,
+        avatar: request.User.avatar || "https://via.placeholder.com/150",
+      }));
+      const none = results
+        .filter((user) => user.relationship === "none")
+        .filter((user) => user.id !== currentUserId);
+
+      setFriendList(friends);
+      setSentInvitations(sent);
+      setRequests(pending);
+      setSuggestions(none);
+>>>>>>> e36339e109f4e5d249a93e9e40cea54976d3751e
     } catch (error) {
       if (error.name === "AbortError") {
         console.log("Request aborted.");

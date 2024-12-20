@@ -266,7 +266,7 @@ const HomeScreen = () => {
           source={{ uri: avatarUrl || "https://via.placeholder.com/150" }}
           style={styles.avatar}
         />
-        <TextInput style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
+        <TextInput onPress={() => navigation.navigate("CreatePost")} style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
       </View>
 
       {/* Post cards with horizontal ScrollView */}

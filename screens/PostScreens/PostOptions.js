@@ -40,6 +40,21 @@ const PostOptions = ({
                 <TouchableOpacity onPress={onDelete}>
                   <Text style={styles.optionText}>Xóa bài viết</Text>
                 </TouchableOpacity>
+                {/* Tùy chọn quyền riêng tư luôn hiển thị */}
+                <TouchableOpacity onPress={() => onPrivacyChange("public")}>
+                  <Text style={styles.optionText}>
+                    Quyền riêng tư: Công khai
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => onPrivacyChange("friends")}>
+                  <Text style={styles.optionText}>Quyền riêng tư: Bạn bè</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => onPrivacyChange("private")}>
+                  <Text style={styles.optionText}>Quyền riêng tư: Cá nhân</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={closeOptions}>
+                  <Text style={styles.cancelText}>Hủy</Text>
+                </TouchableOpacity>
               </>
             ) : (
               <>
@@ -49,21 +64,11 @@ const PostOptions = ({
                 <TouchableOpacity onPress={onHide}>
                   <Text style={styles.optionText}>Ẩn bài viết</Text>
                 </TouchableOpacity>
+                <TouchableOpacity onPress={closeOptions}>
+                  <Text style={styles.cancelText}>Hủy</Text>
+                </TouchableOpacity>
               </>
             )}
-            {/* Tùy chọn quyền riêng tư luôn hiển thị */}
-            <TouchableOpacity onPress={() => onPrivacyChange("public")}>
-              <Text style={styles.optionText}>Quyền riêng tư: Công khai</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => onPrivacyChange("friends")}>
-              <Text style={styles.optionText}>Quyền riêng tư: Bạn bè</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => onPrivacyChange("private")}>
-              <Text style={styles.optionText}>Quyền riêng tư: Cá nhân</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={closeOptions}>
-              <Text style={styles.cancelText}>Hủy</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
