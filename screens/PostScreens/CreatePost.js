@@ -13,6 +13,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import * as ImagePicker from "expo-image-picker";
 import { createPost } from "../../server/PostService";
 import { supabase } from "../../data/supabaseClient";
+import { notifyFriendPost } from "../../server/notificationService";
 import Icon from "react-native-vector-icons/FontAwesome";
 import styles from "./style/styleCreatePost";
 
@@ -145,6 +146,7 @@ const CreatePostTab = () => {
       if (success) {
         Alert.alert("Success", "Post created successfully!");
         navigation.goBack();
+        notifyFriendPost(userId, postId);
       } else {
         Alert.alert("Error", "Error creating post.");
       }

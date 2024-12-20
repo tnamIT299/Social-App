@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons"; // Đảm bảo bạn đã cài đặt @expo/vector-icons
 import dayjs from "dayjs"; // Đảm bảo bạn đã cài đặt dayjs
+import { getUserId } from "../../data/getUserData";
 import { handlePostDetailScreen, handleSendComment } from "./PostFunctions";
 import styles from "./style/styleCommentSection";
 
@@ -48,6 +49,7 @@ const CommentSection = ({
         //console.log("Bình luận đã được thêm:", addedComment); // In ra bình luận vừa thêm
 
         if (addedComment) {
+          const userId = await getUserId();
           // Cập nhật comments nội bộ
           setLocalComments((prevComments) => [...prevComments, addedComment]);
           // console.log("Danh sách bình luận sau khi thêm:", [
@@ -55,6 +57,7 @@ const CommentSection = ({
           //   addedComment,
           // ]); // In ra danh sách bình luận sau khi thêm
           setNewComment(""); // Xóa input sau khi gửi
+          notifyCommentPost(userId, postId, setNewComment);
         } else {
           console.warn("Không có bình luận nào được thêm."); // Cảnh báo nếu không có bình luận được thêm
         }

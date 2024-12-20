@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   TextInput,
@@ -9,10 +9,10 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
+import { getUserId, getUserAvatar, getUserName } from "../../data/getUserData";
 import { useNavigation } from "@react-navigation/native";
-import {getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
-import { Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons";
-import { supabase } from "../../data/supabaseClient"; // Giả định bạn đã cấu hình Supabase client
+import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "../../data/supabaseClient"; // Make sure you have the correct supabase client
 import {
   FriendSuggestion,
   SentInvitationItem,
@@ -24,142 +24,221 @@ const UserSearchScreen = () => {
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState("");
   const [userName, setUserName] = useState("");
+  const [Id, setId] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const [users, setUsers] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
   const [friendList, setFriendList] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
-    if (searchQuery) {
-      fetchUsers(searchQuery);
-    } else {
-      setUsers([]); // Khi không có query thì không hiển thị người dùng nào
-    }
+    let isMounted = true;
+
+    const performSearch = async () => {
+      if (!searchQuery) {
+        resetSearchState();
+        return;
+      }
+
+      setIsSearching(true);
+
+      try {
+        await fetchUsers(searchQuery, isMounted);
+      } catch (error) {
+        console.error("Error searching users:", error.message || error);
+      } finally {
+        if (isMounted) {
+          setIsSearching(false);
+        }
+      }
+    };
+
+    performSearch();
+
+    return () => {
+      isMounted = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [searchQuery]);
 
-  const fetchUsers = async (query) => {
+  const fetchUsers = async (query, isMounted) => {
     try {
-      const currentUserId = await getUserId();
-      // Lấy thông tin người dùng hiện tại
-      const Name = await getUserName();
-      setUserName(Name);
-      const Avatar = await getUserAvatar();
-      setUserAvatar(Avatar);
-
-      // Truy vấn người dùng từ Supabase dựa trên từ khóa tìm kiếm
-      let { data: userData, error: userError } = await supabase
-        .from("User")
-        .select("uid, name, avatar")
-        .ilike("name", `%${query}%`);
-
-      if (userError) {
-        console.error("Lỗi khi lấy danh sách người dùng:", userError);
-        return;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
 
-      // Kiểm tra nếu kết quả tìm kiếm chỉ có một người và đó là chính bạn
-      if (userData.length === 1 && userData[0].uid === currentUserId) {
-        setUsers([
-          {
-            id: userData[0].uid,
-            name: userData[0].name,
-            avatar: userData[0].avatar || "https://via.placeholder.com/150",
-            relationship: "self",
-          },
-        ]);
-        return;
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      const userData = await fetchUserData(query, controller.signal);
+
+      if (!isMounted || controller.signal.aborted) return;
+
+      const relationships = await fetchUserRelationships(controller.signal);
+
+      if (!isMounted || controller.signal.aborted) return;
+
+      const results = processUserData(userData, relationships);
+
+      if (isMounted) {
+        updateUserState(results, relationships);
       }
-
-      // Lấy danh sách bạn bè và các yêu cầu kết bạn (cả người gửi và người nhận)
-      const { data: friendships, error: friendshipsError } = await supabase
-        .from("Friendship")
-        .select("requester_id, receiver_id, status")
-        .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
-
-      if (friendshipsError) throw friendshipsError;
-
-      // Lấy danh sách những người đã gửi lời mời kết bạn đến người dùng hiện tại
-      const { data: pendingRequests, error: pendingRequestsError } =
-        await supabase
-          .from("Friendship")
-          .select("requester_id, User!requester_id(uid, name, avatar)")
-          .eq("receiver_id", currentUserId)
-          .eq("status", "pending");
-
-      if (pendingRequestsError) throw pendingRequestsError;
-
-      // Lấy danh sách những người dùng hiện tại đã gửi lời mời kết bạn
-      const { data: sentRequests, error: sentRequestsError } = await supabase
-        .from("Friendship")
-        .select("receiver_id, User!receiver_id(uid, name, avatar)")
-        .eq("requester_id", currentUserId)
-        .eq("status", "pending");
-
-      if (sentRequestsError) throw sentRequestsError;
-
-      // Tạo danh sách ID đã gửi và nhận lời mời
-      const pendingRequestIds = pendingRequests.map(
-        (request) => request.requester_id
-      );
-      const sentRequestIds = sentRequests.map((request) => request.receiver_id);
-
-      // Phân loại người dùng theo mối quan hệ
-      const results = userData.map((user) => {
-        // Kiểm tra xem người dùng có phải bạn bè không (status "accepted")
-        const isFriend = friendships.some(
-          (friend) =>
-            friend.status === "accepted" &&
-            ((friend.requester_id === user.uid &&
-              friend.receiver_id === currentUserId) ||
-              (friend.receiver_id === user.uid &&
-                friend.requester_id === currentUserId))
-        );
-
-        const isPending = pendingRequestIds.includes(user.uid);
-        const isSentInvitation = sentRequestIds.includes(user.uid);
-
-        return {
-          id: user.uid,
-          name: user.name,
-          avatar: user.avatar || "https://via.placeholder.com/150",
-          relationship: isFriend
-            ? "friend"
-            : isPending
-            ? "pending"
-            : isSentInvitation
-            ? "sent"
-            : "none",
-        };
-      });
-
-      // Cập nhật danh sách người dùng lên UI
-      setUsers(results);
-      console.log(users.length);
-      // Phân loại người dùng
-      const friends = results.filter((user) => user.relationship === "friend");
-      const pending = pendingRequests.map((request) => ({
-        id: request.requester_id,
-        name: request.User.name,
-        avatar: request.User.avatar || "https://via.placeholder.com/150",
-      }));
-      const sent = sentRequests.map((request) => ({
-        id: request.receiver_id,
-        name: request.User.name,
-        avatar: request.User.avatar || "https://via.placeholder.com/150",
-      }));
-      const none = results
-        .filter((user) => user.relationship === "none")
-        .filter((user) => user.id !== currentUserId);
-
-      setFriendList(friends);
-      setSentInvitations(sent);
-      setRequests(pending);
-      setSuggestions(none);
     } catch (error) {
-      console.error("Lỗi khi tìm kiếm người dùng:", error.message || error);
+      if (error.name === "AbortError") {
+        console.log("Request aborted.");
+      } else {
+        //console.error("Error fetching users:", error.message || error);
+      }
     }
+  };
+
+  const fetchUserData = async (query, signal) => {
+    const { data, error } = await supabase
+      .from("User")
+      .select("uid, name, avatar")
+      .ilike("name", `%${query}%`)
+      .abortSignal(signal);
+
+    if (error) throw error;
+    return data;
+  };
+
+  const fetchUserRelationships = async (signal) => {
+    const userId = await getUserId();
+    setId(userId);
+    const Avatar = await getUserAvatar();
+    setUserAvatar(Avatar);
+    const Name = await getUserName();
+    setUserName(Name);
+    try {
+      const [friendshipsRes, pendingRequestsRes, sentRequestsRes] =
+        await Promise.all([
+          supabase
+            .from("Friendship")
+            .select("requester_id, receiver_id, status")
+            .or(`requester_id.eq.${userId},receiver_id.eq.${userId}`)
+            .abortSignal(signal),
+          supabase
+            .from("Friendship")
+            .select("requester_id, User!requester_id(uid, name, avatar)")
+            .eq("receiver_id", userId)
+            .eq("status", "pending")
+            .abortSignal(signal),
+          supabase
+            .from("Friendship")
+            .select("receiver_id, User!receiver_id(uid, name, avatar)")
+            .eq("requester_id", userId)
+            .eq("status", "pending")
+            .abortSignal(signal),
+        ]);
+
+      const friendships = friendshipsRes.data || [];
+      const pendingRequests = pendingRequestsRes.data || [];
+      const sentRequests = sentRequestsRes.data || [];
+
+      return { friendships, pendingRequests, sentRequests, userId };
+    } catch (error) {
+      console.error(
+        "Error fetching user relationships:",
+        error.message || error
+      );
+      return { friendships: [], pendingRequests: [], sentRequests: [], userId };
+    }
+  };
+
+  const processUserData = (
+    userData,
+    { friendships, pendingRequests, sentRequests, userId }
+  ) => {
+    const pendingRequestIds = pendingRequests.map((req) => req.requester_id);
+    const sentRequestIds = sentRequests.map((req) => req.receiver_id);
+
+    // Process users matching the search query and relationships
+    const processedData = userData.map((user) => {
+      const isFriend = friendships.some(
+        (f) =>
+          f.status === "accepted" &&
+          ((f.requester_id === user.uid && f.receiver_id === userId) ||
+            (f.receiver_id === user.uid && f.requester_id === userId))
+      );
+
+      const isPending = pendingRequestIds.includes(user.uid);
+      const isSentInvitation = sentRequestIds.includes(user.uid);
+
+      return {
+        id: user.uid,
+        name: user.name,
+        avatar: user.avatar || "https://via.placeholder.com/150",
+        relationship: isFriend
+          ? "friend"
+          : isPending
+          ? "pending"
+          : isSentInvitation
+          ? "sent"
+          : "none",
+      };
+    });
+
+    // Only add the current user ('self') if the search query matches their name
+    const currentUserData = {
+      id: userId,
+      name: userName,
+      avatar: userAvatar || "https://via.placeholder.com/150",
+      relationship: "self",
+    };
+
+    // Add current user to the results if the name matches the search query
+    if (userName.toLowerCase().includes(searchQuery.toLowerCase())) {
+      processedData.unshift(currentUserData);
+    }
+
+    return processedData;
+  };
+
+  const updateUserState = (
+    results,
+    { pendingRequests, sentRequests, userId }
+  ) => {
+    const friends = results.filter((user) => user.relationship === "friend");
+    const pending = pendingRequests.map((req) => ({
+      id: req.requester_id,
+      name: req.User.name,
+      avatar: req.User.avatar || "https://via.placeholder.com/150",
+    }));
+    const sent = sentRequests.map((req) => ({
+      id: req.receiver_id,
+      name: req.User.name,
+      avatar: req.User.avatar || "https://via.placeholder.com/150",
+    }));
+    const none = results
+      .filter((user) => user.relationship === "none")
+      .filter((user) => user.id !== userId);
+
+    setUsers(results);
+    setFriendList(friends);
+    setSentInvitations(sent);
+    setRequests(pending);
+    setSuggestions(none);
+  };
+
+  const resetSearchState = () => {
+    setUsers([]);
+    setIsSearching(false);
+  };
+
+  const goToProfileScreen = () => {
+    navigation.navigate("Profile", {
+      screen: "ProfileTab", // Tên tab bạn muốn điều hướng đến
+      params: {
+        userId: Id,
+      },
+    });
   };
 
   return (
@@ -180,90 +259,96 @@ const UserSearchScreen = () => {
           onChangeText={setSearchQuery}
         />
       </View>
-      <ScrollView style={styles.scrollContainer}>
-        {users.length === 0 && (
-          <Text style={styles.noResultsText}>Không có kết quả nào.</Text>
-        )}
-        {users.length > 0 && (
-          <>
-            {users.some((user) => user.relationship === "self") && (
-              <View>
-                <Text style={styles.sectionTitle}>Bạn</Text>
-                <View style={styles.requestContainer}>
-                  <Image
-                    source={{
-                      uri: userAvatar || "https://via.placeholder.com/150",
-                    }}
-                    style={styles.avatar}
-                  />
-                  <View style={styles.requestInfo}>
-                    <Text style={styles.name}>{userName}</Text>
+      {isSearching ? (
+        <Text style={styles.searchingText}>Đang tìm kiếm...</Text>
+      ) : (
+        <ScrollView style={styles.scrollContainer}>
+          {users.length === 0 && (
+            <Text style={styles.noResultsText}>Không có kết quả nào.</Text>
+          )}
+          {users.length > 0 && (
+            <>
+              {users.some((user) => user.relationship === "self") && (
+                <View>
+                  <Text style={styles.sectionTitle}>Bạn</Text>
+                  <View style={styles.requestContainer}>
+                    <TouchableOpacity onPress={goToProfileScreen}>
+                      <Image
+                        source={{
+                          uri: userAvatar || "https://via.placeholder.com/150", // Replace with actual current user's avatar
+                        }}
+                        style={styles.avatar}
+                      />
+                    </TouchableOpacity>
+                    <View style={styles.requestInfo}>
+                      <Text style={styles.name}>{userName}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            )}
+              )}
 
-            {friendList.length > 0 && (
-              <Text style={styles.sectionTitle}>Bạn bè</Text>
-            )}
-            {friendList.map((friend) => (
-              <FriendListItem
-                key={friend.id}
-                avatar={friend.avatar}
-                name={friend.name}
-                uid={friend.id}
-                fetchFriendList={fetchUsers}
-              />
-            ))}
+              {friendList.length > 0 && (
+                <Text style={styles.sectionTitle}>Bạn bè</Text>
+              )}
+              {friendList.map((friend) => (
+                <FriendListItem
+                  key={friend.id}
+                  avatar={friend.avatar}
+                  name={friend.name}
+                  uid={friend.id}
+                  fetchFriendList={fetchUsers}
+                />
+              ))}
 
-            {sentInvitations.length > 0 && (
-              <Text style={styles.sectionTitle}>Lời mời đã gửi</Text>
-            )}
-            {sentInvitations.map((invitation) => (
-              <SentInvitationItem
-                key={invitation.id}
-                avatar={invitation.avatar}
-                name={invitation.name}
-                receiverId={invitation.id}
-                fetchSentInvitations={fetchUsers}
-              />
-            ))}
+              {sentInvitations.length > 0 && (
+                <Text style={styles.sectionTitle}>Lời mời đã gửi</Text>
+              )}
+              {sentInvitations.map((invitation) => (
+                <SentInvitationItem
+                  key={invitation.id}
+                  avatar={invitation.avatar}
+                  name={invitation.name}
+                  receiverId={invitation.id}
+                  fetchSentInvitations={fetchUsers}
+                />
+              ))}
 
-            {requests.length > 0 && (
-              <>
-                <Text style={styles.sectionTitle}>Lời mời kết bạn</Text>
-                {requests.map((request) => (
-                  <FriendRequest
-                    key={request.id}
-                    avatar={request.avatar}
-                    name={request.name}
-                    requestId={request.id}
-                    fetchFriendRequests={fetchUsers}
-                    fetchFriendList={fetchUsers}
-                  />
-                ))}
-              </>
-            )}
+              {requests.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>Lời mời kết bạn</Text>
+                  {requests.map((request) => (
+                    <FriendRequest
+                      key={request.id}
+                      avatar={request.avatar}
+                      name={request.name}
+                      requestId={request.id}
+                      fetchFriendRequests={fetchUsers}
+                      fetchFriendList={fetchUsers}
+                    />
+                  ))}
+                </>
+              )}
 
-            {suggestions.length > 0 && (
-              <Text style={styles.sectionTitle}>Người lạ</Text>
-            )}
-            {suggestions.map((suggestion) => (
-              <FriendSuggestion
-                key={suggestion.id}
-                avatar={suggestion.avatar}
-                name={suggestion.name}
-                receiverId={suggestion.id}
-                fetchSuggestions={fetchUsers}
-                fetchSentInvitations={fetchUsers}
-                userId={suggestion.id}
-                suggestions={suggestions}
-                setSuggestions={setSuggestions}
-              />
-            ))}
-          </>
-        )}
-      </ScrollView>
+              {suggestions.length > 0 && (
+                <Text style={styles.sectionTitle}>Người lạ</Text>
+              )}
+              {suggestions.map((suggestion) => (
+                <FriendSuggestion
+                  key={suggestion.id}
+                  avatar={suggestion.avatar}
+                  name={suggestion.name}
+                  receiverId={suggestion.id}
+                  fetchSuggestions={fetchUsers}
+                  fetchSentInvitations={fetchUsers}
+                  userId={suggestion.id}
+                  suggestions={suggestions}
+                  setSuggestions={setSuggestions}
+                />
+              ))}
+            </>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };

@@ -1,6 +1,7 @@
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
 import { sendComment } from "../../server/CommentService";
+import { notifyLikePost } from "../../server/notificationService";
 
 // Lấy danh sách bài viết với quyền công khai và thông tin người dùng liên quan
 export const fetchPosts = async (setPosts, setLoading, setError) => {
@@ -9,7 +10,8 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
     // Lấy danh sách bài viết với quyền truy cập là "cộng đồng", bao gồm thông tin người dùng và bài viết gốc
     const { data: postsData, error: postsError } = await supabase
       .from("Post")
-      .select(`
+      .select(
+        `
         *,
         user:uid(uid,name, avatar),
         original_post:original_pid(
@@ -18,7 +20,8 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
           pimage,
           user:uid(uid, name, avatar)
         )
-      `)
+      `
+      )
       .eq("permission", "cộng đồng");
 
     if (postsError) throw new Error(postsError.message);
@@ -83,14 +86,19 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
   }
 };
 
-
-export const fetchPostsUser = async (userId, setPosts, setLoading, setError) => {
+export const fetchPostsUser = async (
+  userId,
+  setPosts,
+  setLoading,
+  setError
+) => {
   setLoading(true);
   try {
     // Lấy danh sách bài viết do người dùng đăng hoặc chia sẻ
     const { data: postsData, error: postsError } = await supabase
       .from("Post")
-      .select(`
+      .select(
+        `
         * ,
         user:uid(name, avatar), 
         original_post:original_pid( 
@@ -99,7 +107,8 @@ export const fetchPostsUser = async (userId, setPosts, setLoading, setError) => 
           pimage,
           user:uid(name, avatar)
         )
-      `)
+      `
+      )
       .eq("uid", userId);
 
     if (postsError) throw new Error(postsError.message);
@@ -162,7 +171,6 @@ export const fetchPostsUser = async (userId, setPosts, setLoading, setError) => 
   }
 };
 
-
 export const handleLike = async (
   postId,
   isLiked,
@@ -200,6 +208,7 @@ export const handleLike = async (
 
     // Cập nhật số lượt thích trong cơ sở dữ liệu
     await updateLikeCount(postId, !isLiked, userId);
+    notifyLikePost(userId, postId);
   } catch (error) {
     console.error("Lỗi khi xử lý thích bài viết:", error.message);
     setError(error.message); // Đặt lỗi nếu có
