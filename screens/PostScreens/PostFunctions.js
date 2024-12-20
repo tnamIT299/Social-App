@@ -1,6 +1,7 @@
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
 import { sendComment } from "../../server/CommentService";
+import { notifyLikePost } from "../../server/notificationService";
 
 // Lấy danh sách bài viết với quyền công khai và thông tin người dùng liên quan
 export const fetchPosts = async (setPosts, setLoading, setError) => {
@@ -84,7 +85,12 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
   }
 };
 
-export const fetchPostsUser = async (userId ,setPosts, setLoading, setError) => {
+export const fetchPostsUser = async (
+  userId,
+  setPosts,
+  setLoading,
+  setError
+) => {
   setLoading(true);
   try {
     // Lấy danh sách bài viết với quyền truy cập là "cộng đồng"
@@ -200,6 +206,7 @@ export const handleLike = async (
 
     // Cập nhật số lượt thích trong cơ sở dữ liệu
     await updateLikeCount(postId, !isLiked, userId);
+    notifyLikePost(userId, postId);
   } catch (error) {
     console.error("Lỗi khi xử lý thích bài viết:", error.message);
     setError(error.message); // Đặt lỗi nếu có
