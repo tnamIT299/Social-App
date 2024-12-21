@@ -66,38 +66,99 @@ export const sendMessageWithImage = async (mesageDetails) => {
     return false;
   }
 };
-export const deleteMessage = async (id, senderId, uid, fetchMessages) => {
-    if (senderId !== uid) {
-      Alert.alert("Lỗi", "Bạn không có quyền thu hồi tin nhắn này.");
-      return; // Ngừng hành động nếu người dùng không phải là người gửi tin nhắn
+// export const deleteMessage = async (id, senderId, uid, fetchMessages) => {
+//     if (senderId !== uid) {
+//       Alert.alert("Lỗi", "Bạn không có quyền thu hồi tin nhắn này.");
+//       return; // Ngừng hành động nếu người dùng không phải là người gửi tin nhắn
+//     }
+  
+//     Alert.alert("Xác nhận", "Bạn có chắc muốn thu hồi tin nhắn này?", [
+//       { text: "Huỷ", style: "cancel" },
+//       {
+//         text: "Thu hồi",
+//         style: "destructive",
+//         onPress: async () => {
+//           try {
+//             const { error } = await supabase
+//               .from("GroupMessage")
+//               .delete()
+//               .eq("id", id);
+  
+//             if (error) {
+//               console.error("Lỗi thu hồi tin nhắn:", error);
+//               Alert.alert("Lỗi", "Không thể thu hồi tin nhắn.");
+//             } else {
+//               Alert.alert("Thành công", "Tin nhắn đã được thu hồi.");
+//               await fetchMessages(); // Tải lại tin nhắn
+//             }
+//           } catch (err) {
+//             console.error("Unexpected error:", err);
+//             Alert.alert("Lỗi", "Có lỗi xảy ra khi thu hồi tin nhắn.");
+//           }
+//         },
+//       },
+//     ]);
+//   };
+
+  export const editMessage = async (messageId, newContent, fetchMessages) => {
+    if (newContent.trim() === "") {
+      return { success: false, message: "Nội dung tin nhắn không được để trống." };
     }
   
-    Alert.alert("Xác nhận", "Bạn có chắc muốn thu hồi tin nhắn này?", [
-      { text: "Huỷ", style: "cancel" },
-      {
-        text: "Thu hồi",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const { error } = await supabase
-              .from("GroupMessage")
-              .delete()
-              .eq("id", id);
+    try {
+      // Cập nhật tin nhắn trong bảng Message
+      const { error } = await supabase
+        .from("GroupMessage")
+        .update({ content: newContent })
+        .eq("id", messageId);
   
-            if (error) {
-              console.error("Lỗi thu hồi tin nhắn:", error);
-              Alert.alert("Lỗi", "Không thể thu hồi tin nhắn.");
-            } else {
-              Alert.alert("Thành công", "Tin nhắn đã được thu hồi.");
-              await fetchMessages(); // Tải lại tin nhắn
+      if (error) {
+        console.error("Lỗi khi chỉnh sửa tin nhắn:", error);
+        return { success: false, message: "Không thể chỉnh sửa tin nhắn." };
+      }
+  
+      // Tải lại danh sách tin nhắn
+      await fetchMessages();
+  
+      return { success: true };
+    } catch (err) {
+      console.error("Lỗi không mong muốn khi chỉnh sửa tin nhắn:", err);
+      return { success: false, message: "Đã xảy ra lỗi khi chỉnh sửa tin nhắn." };
+    }
+  };
+  
+  export const deleteMessage = async (messageId, fetchMessages) => {
+    Alert.alert(
+      "Xác nhận",
+      "Bạn có chắc muốn thu hồi tin nhắn này?",
+      [
+        { text: "Huỷ", style: "cancel" },
+        {
+          text: "Thu hồi",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from("GroupMessage")
+                .delete()
+                .eq("id", messageId);
+  
+              if (error) {
+                console.error("Lỗi khi thu hồi tin nhắn:", error);
+                Alert.alert("Lỗi", "Không thể thu hồi tin nhắn.");
+              } else {
+                Alert.alert("Thành công", "Tin nhắn đã được thu hồi.");
+                await fetchMessages(); // Tải lại danh sách tin nhắn sau khi xóa
+              }
+            } catch (err) {
+              console.error("Lỗi không mong muốn:", err);
+              Alert.alert("Lỗi", "Có lỗi xảy ra khi thu hồi tin nhắn.");
             }
-          } catch (err) {
-            console.error("Unexpected error:", err);
-            Alert.alert("Lỗi", "Có lỗi xảy ra khi thu hồi tin nhắn.");
-          }
+          },
         },
-      },
-    ]);
+      ],
+      { cancelable: true }
+    );
   };
   
 
