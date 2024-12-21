@@ -100,12 +100,12 @@ export const fetchPostsUser = async (
       .select(
         `
         * ,
-        user:uid(name, avatar), 
+        user:uid(uid, name, avatar), 
         original_post:original_pid( 
           ptitle,
           pdesc,
           pimage,
-          user:uid(name, avatar)
+          user:uid(uid, name, avatar)
         )
       `
       )

@@ -574,12 +574,7 @@ const PostDetailScreen = () => {
                       style={styles.userAvatar}
                     />
                   )}
-                  <Text style={{ flex: 1 }}>{post.User?.name}</Text>
-                  <FontAwesome6
-                    style={{ flex: 0.1 }}
-                    name="ellipsis"
-                    size={20}
-                  ></FontAwesome6>
+                  <Text style={{ flex: 1, fontSize:16, fontWeight:"bold" }}>{post.User?.name}</Text>
                 </View>
               </View>
               <View style={styles.posttimeView}>
