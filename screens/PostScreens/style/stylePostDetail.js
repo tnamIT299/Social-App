@@ -86,12 +86,13 @@ const styles = StyleSheet.create({
     },
     commentsContainer: {
       marginTop: 20,
-      flexDirection: "column",
       padding: 5,
     },
     commentCard: {
-      flexDirection: "column",
-      padding: 10,
+      padding: 15,
+      marginBottom: 15,
+      backgroundColor: "#f9f9f9",
+      borderRadius: 10,
     },
     commentText: {
       marginBottom: 10,
@@ -161,7 +162,7 @@ const styles = StyleSheet.create({
       alignItems: "center",
       marginTop: 15,
       paddingVertical: 10,
-      paddingHorizontal: 20,
+      paddingHorizontal: 25,
       borderTopWidth: 1,
       borderTopColor: "#ddd",
       backgroundColor: "#fff", // Đảm bảo khung comment luôn có màu nền
@@ -206,11 +207,9 @@ const styles = StyleSheet.create({
       height: 250,
       resizeMode: "cover",
     },
-  
     replyInputContainer: {
       flexDirection: "row",
       alignItems: "center",
-      marginTop: 10,
       marginLeft: 50, // Canh lề cho input reply
     },
     replyInput: {
@@ -221,21 +220,70 @@ const styles = StyleSheet.create({
       padding: 10,
       marginRight: 10,
     },
+  
     sendButton: {
       color: "#007BFF",
       fontWeight: "bold",
     },
-    replyContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginTop: 5,
-      marginLeft: 50,
+    modalOverlay: {
+      flex: 1,
+      justifyContent: "flex-start",
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
     },
-    replyContent: {
+    modalContent: {
+      position: "absolute",
+      backgroundColor: "white",
+      padding: 10,
+      borderRadius: 10,
+      width: 190,
+      zIndex: 999,
+    },
+    optionItem: {
+      flexDirection: "row",
+      paddingVertical: 5,
+    },
+    optionText: {
+      color: "black",
+      fontSize: 15,
       marginLeft: 10,
     },
-    replyText: {
-      color: "#333",
+    editingCommentCard: {
+      padding: 15,
+      backgroundColor: "#f0f0f0",
+      borderRadius: 5,
+      marginBottom: 10,
     },
+    editingInput: {
+      borderColor: "#ccc",
+      borderWidth: 1,
+      borderRadius: 5,
+      padding: 10,
+      fontSize: 14,
+      backgroundColor: "#fff",
+    },
+    editingActions: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 10,
+    },
+    saveButton: {
+      backgroundColor: "#4CAF50",
+      padding: 8,
+      borderRadius: 5,
+    },
+    saveButtonText: {
+      color: "#fff",
+      fontWeight: "bold",
+    },
+    cancelButton: {
+      backgroundColor: "#f44336",
+      padding: 8,
+      borderRadius: 5,
+    },
+    cancelButtonText: {
+      color: "#fff",
+      fontWeight: "bold",
+    },
+    
   });
   export default styles;

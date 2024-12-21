@@ -344,7 +344,7 @@ const ProfileTab = () => {
                       color="black"
                       style={styles.iconModal}
                     />
-                    <Text style={styles.optionText}>Cancel</Text>
+                    <Text style={styles.optionText}>Huỷ</Text>
                   </TouchableOpacity>
                   {/* Add more options as needed */}
                 </View>
