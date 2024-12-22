@@ -4,6 +4,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
+  avatarContainer: {
+    position: "relative", // Container để định vị statusDot
+    marginRight: 10,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -212,11 +216,14 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   statusDot: {
-    width: 12,
-    height: 12,
-    bottom: 5,
-    borderRadius: 6,
-    marginLeft:5
+    position: "absolute",
+    width: 15,
+    height: 15,
+    borderRadius: 7,
+    bottom: 2, 
+    right: 2,
+    borderWidth: 2, 
+    borderColor: "#fff",
   },
 });
 

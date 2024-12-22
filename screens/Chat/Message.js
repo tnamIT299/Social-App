@@ -427,13 +427,21 @@ const Message = ({ route }) => {
           >
             <Icon name="chevron-back-outline" size={25} color="black" />
           </TouchableOpacity>
-          <Image source={{ uri: avatar }} style={styles.headerAvatar} />
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: onlinestatus === "online" ? "green" : "gray" },
-            ]}
-          />
+
+          <View style={styles.avatarContainer}>
+            <Image source={{ uri: avatar }} style={styles.headerAvatar} />
+            {!isBlocked && (
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor:
+                      onlinestatus === "online" ? "green" : "gray",
+                  },
+                ]}
+              />
+            )}
+          </View>
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>{name}</Text>
             {!isBlocked && (
