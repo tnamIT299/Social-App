@@ -59,6 +59,7 @@ const Message = ({ route }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [blocker_id, setBlockerId] = useState("");
 
   useEffect(() => {
     const checkBlockStatus = async () => {
@@ -232,7 +233,8 @@ const Message = ({ route }) => {
         return false;
       }
 
-      console.log("BlockedList data:", data); // Kiểm tra dữ liệu trả về
+      console.log("BlockedList data:", data);
+      setBlockerId(data[0]?.blocker_id);
 
       return data.length === 0; // Nếu mảng rỗng, không bị chặn
     } catch (err) {
@@ -452,41 +454,43 @@ const Message = ({ route }) => {
               </Text>
             )}
           </View>
-          <View style={styles.headerIcons}>
-            <Icon
-              name="call-outline"
-              size={25}
-              color="black"
-              style={styles.icon}
-            />
-            <Icon
-              name="videocam-outline"
-              size={25}
-              color="black"
-              style={styles.icon}
-            />
-            <TouchableOpacity
-              onPress={() =>
-                navigation.navigate("SettingChat", {
-                  screen: "SettingChatTab",
-                  params: {
-                    avatar: avatar,
-                    name: name,
-                    uid: uid,
-                    receiverId: receiverId,
-                    senderId: senderId,
-                  },
-                })
-              }
-            >
+          {!isBlocked && (
+            <View style={styles.headerIcons}>
               <Icon
-                name="ellipsis-horizontal-outline"
+                name="call-outline"
                 size={25}
                 color="black"
                 style={styles.icon}
               />
-            </TouchableOpacity>
-          </View>
+              <Icon
+                name="videocam-outline"
+                size={25}
+                color="black"
+                style={styles.icon}
+              />
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate("SettingChat", {
+                    screen: "SettingChatTab",
+                    params: {
+                      avatar: avatar,
+                      name: name,
+                      uid: uid,
+                      receiverId: receiverId,
+                      senderId: senderId,
+                    },
+                  })
+                }
+              >
+                <Icon
+                  name="ellipsis-horizontal-outline"
+                  size={25}
+                  color="black"
+                  style={styles.icon}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <FlatList
@@ -674,12 +678,14 @@ const Message = ({ route }) => {
             <Text style={styles.blockedText}>
               Bạn không thể gửi tin nhắn cho người này.
             </Text>
+            {userId === blocker_id && (  
             <TouchableOpacity
               style={styles.unblockButton}
               onPress={handleUnblock}
             >
               <Text style={styles.unblockText}>Bỏ chặn</Text>
             </TouchableOpacity>
+            )}
           </View>
         )}
       </SafeAreaView>

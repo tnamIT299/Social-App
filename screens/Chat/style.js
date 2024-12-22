@@ -179,9 +179,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   blockedText: {
-    fontSize: 15,
+    fontSize: 13,
     color: "#000",
     fontWeight: "bold",
+    textAlign: "center",
   },
   unblockButton: {
     padding: 10,
