@@ -160,7 +160,7 @@ const HomeScreen = () => {
                   />
                   <Text style={styles.optionText}>Tạo tin</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.optionItem}>
+                <TouchableOpacity style={styles.optionItem} onPress={() => navigation.navigate("CreateReel")}>
                   <Ionicons
                     name="film-outline"
                     size={24}
