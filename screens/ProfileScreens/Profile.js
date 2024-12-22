@@ -10,6 +10,7 @@ import {
   Dimensions,
   ScrollView,
   Alert,
+  FlatList,
 } from "react-native";
 import {
   useNavigation,
@@ -20,6 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Icon from "react-native-vector-icons/Ionicons";
 import { supabase } from "../../data/supabaseClient";
+import { Video } from 'expo-av';
 import { createStackNavigator } from "@react-navigation/stack";
 import PostScreen from "../PostScreens/PostScreen";
 import { fetchPostsUser } from "../PostScreens/PostFunctions";
@@ -47,8 +49,11 @@ const ProfileTab = () => {
   const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
   const [posts, setPosts] = useState([]);
   const [likedPosts, setLikedPosts] = useState({});
+  const [reels, setReels] = useState([]);  // Dữ liệu các reel
+  const [playingIndex, setPlayingIndex] = useState(null);
   const [error, setError] = useState(null);
   const navigation = useNavigation();
+  const [activeSection, setActiveSection] = useState('post'); // Trạng thái của mục đang hiển thị
 
   const fetchUserData = async () => {
     const {
@@ -97,6 +102,18 @@ const ProfileTab = () => {
       setIsFriendAdded(true);
     }
 
+    // Lấy dữ liệu reel của người dùng
+    const { data: reels, error: reelError } = await supabase
+      .from("Reels")
+      .select("*")  // Lọc các trường bạn cần
+      .eq("uid", userId);  // Lọc theo user_id
+
+    if (reelError) {
+      console.error("Error fetching reels: ", reelError);
+    } else {
+      setReels(reels);  // Lưu dữ liệu reels vào state
+    }
+
     setLoading(false);
   };
 
@@ -124,6 +141,13 @@ const ProfileTab = () => {
   useEffect(() => {
     fetchUserData(); // Tải dữ liệu lần đầu khi trang được render 
   }, [userId]);
+
+  useEffect(() => {
+    // Kiểm tra nếu có tham số activeSection từ route.params
+    if (route.params?.activeSection) {
+      setActiveSection(route.params.activeSection); // Đặt activeSection theo giá trị truyền vào
+    }
+  }, [route.params?.activeSection]); // Chạy lại khi tham số activeSection thay đổi
 
 
   const handleOpenModal = (event) => {
@@ -259,6 +283,12 @@ const ProfileTab = () => {
       console.error("Lỗi khi hoàn tác thêm bạn:", error.message);
     }
   };
+  const handleSectionChange = (section) => {
+    setActiveSection(section);  // Cập nhật activeSection khi người dùng nhấn vào một nút
+  };
+  const handlePlayVideo = (index) => {
+    setPlayingIndex(index);  // Cập nhật video đang phát
+  };
 
 
 
@@ -324,15 +354,6 @@ const ProfileTab = () => {
                       style={styles.iconModal}
                     />
                     <Text style={styles.optionText}>Chỉnh sửa</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.optionItem}>
-                    <Ionicons
-                      name="search-outline"
-                      size={24}
-                      color="black"
-                      style={styles.iconModal}
-                    />
-                    <Text style={styles.optionText}>Tìm kiếm</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.optionItem}
@@ -431,32 +452,81 @@ const ProfileTab = () => {
             <View style={styles.infoSection}>
               <Text style={styles.info}>Thông tin</Text>
               <View style={styles.infoContainer}>
-                <Text style={styles.text}>Điện thoại: {phone}</Text>
-                <Text style={styles.text}>Email: {email}</Text>
-                <Text style={styles.text}>Địa chỉ: {address}</Text>
-                <Text style={styles.text}>Công việc: {job}</Text>
-                <Text style={styles.text}>Nơi làm việc: {workplace}</Text>
+                <Text style={styles.text}>{phone ? `Điện thoại: ${phone}` : null}</Text>
+                <Text style={styles.text}>{email ? `Email: ${email}` : null}</Text>
+                <Text style={styles.text}>{address ? `Địa chỉ: ${address}` : null}</Text>
+                <Text style={styles.text}>{job ? `Công việc: ${job}` : null}</Text>
+                <Text style={styles.text}>{workplace ? `Nơi làm việc: ${workplace}` : null}</Text>
+
               </View>
             </View>
-
-            {/* Post cards with horizontal ScrollView */}
-            <View style={styles.infoSection}>
-              <ScrollView style={{ marginBottom: 30 }}>
-                <Text style={styles.info}>Bài viết</Text>
-                <PostScreen
-                  posts={posts}
-                  loading={loading}
-                  error={error}
-                  userId={userId}
-                  navigation={navigation}
-                  setPosts={setPosts}
-                  setLikedPosts={setLikedPosts}
-                  setLoading={setLoading}
-                  setError={setError}
-                  fetchPostsUser={fetchPostsUser}
-                />
-              </ScrollView>
+            <View style={styles.SectionContainer}>
+              {/* Các nút để chuyển giữa các phần */}
+              <TouchableOpacity onPress={() => handleSectionChange('post')} style={styles.button}>
+                <Text style={styles.buttonText}>Bài viết</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleSectionChange('reel')} style={styles.button}>
+                <Text style={styles.buttonText}>Reel</Text>
+              </TouchableOpacity>
             </View>
+
+            {/* Hiển thị phần "Bài viết" */}
+            {activeSection === 'post' && (
+              <View style={styles.PostSection}>
+                <ScrollView style={{ marginBottom: 30 }}>
+                  <PostScreen
+                    posts={posts}
+                    loading={loading}
+                    error={error}
+                    userId={userId}
+                    navigation={navigation}
+                    setPosts={setPosts}
+                    setLikedPosts={setLikedPosts}
+                    setLoading={setLoading}
+                    setError={setError}
+                    fetchPostsUser={fetchPostsUser}
+                  />
+                </ScrollView>
+              </View>
+            )}
+            {activeSection === 'reel' && (
+              <View style={styles.ReelSection}>
+                <ScrollView style={{ marginBottom: 30 }}>
+                  <View style={styles.reelsContainer}>
+                    {/* Hiển thị các Reel */}
+                    {reels.map((item) => (
+                      <TouchableOpacity
+                        key={item.reelid}
+                        style={styles.reelItem}
+                        onPress={() => navigation.navigate('ReelsScreen', { UserReelid: item.reelid, ProfileId: userId })} // Gửi reelid tới ReelScreen
+                      >
+                        {/* Hiển thị video */}
+                        <View style={styles.videoContainer}>
+                          <Video
+                            source={{ uri: item.reelurl }}
+                            style={styles.reelVideo}
+                            resizeMode="contain" // Đảm bảo video được co giãn vừa khung
+                          />
+                        </View>
+                        <View style={styles.overlay}>
+                          <View style={styles.reelInfoContainer}>
+                            <Icon name="heart-outline" size={16} color="#fff" />
+                            <Text style={styles.reelInfo}>{item.reellike}</Text>
+                          </View>
+                          <View style={styles.reelInfoContainer}>
+                            <Icon name="chatbox-outline" size={16} color="#fff" />
+                            <Text style={styles.reelInfo}>{item.reelcomment}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.reelText}>{item.reeltitle}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+
+
           </View>
         )}
       </ScrollView>
@@ -480,7 +550,7 @@ const ProfileStack = ({ navigation }) => {
             <Icon
               name="chevron-back-outline"
               size={20}
-              onPress={() => navigation.goBack()}
+              onPress={() => navigation.navigate('MenuScreen')}
               style={{ color: "#FFFFFF", marginLeft: 20 }}
             ></Icon>
           ),
@@ -579,6 +649,14 @@ const styles = StyleSheet.create({
   infoSection: {
     padding: 10,
   },
+  PostSection: {
+    marginLeft: -10,
+    marginRight: -10,
+  },
+  ReelSection: {
+    marginLeft: 10,
+    marginRight: 10,
+  },
   infoContainer: {
     alignItems: "flex-start",
   },
@@ -618,6 +696,75 @@ const styles = StyleSheet.create({
   },
   text: {
     paddingBottom: 5,
+  },
+  SectionContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    marginLeft: 10,
+  },
+  button: {
+    marginRight: 5,
+    paddingVertical: 5,  // Tăng độ cao cho nút
+    paddingHorizontal: 5, // Tăng độ rộng cho nút
+    borderRadius: 5,  // Bo tròn viền giống nút Android
+    alignItems: 'center', // Canh giữa văn bản trong nút
+    justifyContent: 'center', // Canh giữa văn bản trong nút
+    elevation: 2, // Tạo hiệu ứng bóng đổ nhẹ (giống Android)
+    shadowColor: '#000',  // Màu bóng đổ
+    shadowOpacity: 0.1,  // Độ mờ của bóng
+    shadowRadius: 5,  // Độ mờ của bóng
+    shadowOffset: { width: 0, height: 4 },  // Vị trí bóng
+    width: 80,  // Chiều rộng cố định
+    height: 45,  // Chiều cao cố định
+  },
+  buttonText: {
+    color: 'black',
+    fontSize: 16,
+    fontWeight: 'bold', // Để in đậm hơn
+  },
+  reelsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between', // Giữa các video
+  },
+  reelItem: {
+    width: '18%',  // Điều chỉnh kích thước của mỗi reel (sử dụng 48% để có 2 cột)
+    marginBottom: 10,
+    alignItems: 'center', // Căn giữa nội dung của mỗi reel
+  },
+  videoContainer: {
+    width: '100%',  // Đảm bảo container chiếm toàn bộ chiều rộng của reel
+    height: 100,    // Chiều cao container video
+    backgroundColor: 'black',  // Nền đen cho phần còn trống
+    justifyContent: 'center',
+    alignItems: 'center',  // Căn giữa video trong container
+    marginBottom: 5, // Khoảng cách giữa video và tiêu đề
+  },
+  reelVideo: {
+    width: '100%',  // Đảm bảo video chiếm toàn bộ chiều rộng của item
+    height: '100%',  // Chiều cao video chiếm toàn bộ chiều cao của container
+  },
+  reelText: {
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  overlay: {
+    position: 'absolute',
+    bottom: 10,
+    padding: 15,
+    borderRadius: 5,
+    flexDirection: 'row', 
+    alignItems: 'flex-start', 
+  },
+  reelInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',  // Căn giữa icon và text
+    margin: 5,  // Khoảng cách giữa các dòng icon-text
+  },
+  reelInfo: {
+    color: '#fff',
+    fontSize: 14,
+    marginLeft: 5,  // Khoảng cách giữa icon và text
   },
 });
 

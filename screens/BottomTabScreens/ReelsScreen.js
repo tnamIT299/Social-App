@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, Dimensions, Modal, TextInput, Button } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, Dimensions, Modal, TextInput, Alert, Button } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from "../../data/supabaseClient";
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Video } from 'expo-av';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
 import Slider from '@react-native-community/slider'; // Thêm Slider
+
 
 
 const { width, height } = Dimensions.get('window');
@@ -16,8 +17,12 @@ dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
 const ReelsScreen = () => {
+  const route = useRoute();
+  const { UserReelid, setUserReelid } = route.params || {};
+  const { ProfileId } = route.params || {};
   const [reels, setReels] = useState([]);
   const [user, setUser] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const videoRefs = useRef([]);
   const [playingVideos, setPlayingVideos] = useState({});
   const [muted, setMuted] = useState({});
@@ -28,29 +33,41 @@ const ReelsScreen = () => {
   const [isModalVisible, setIsModalVisible] = useState(false); // Trạng thái hiển thị Modal
   const [selectedReel, setSelectedReel] = useState(null);
   const [commentText, setCommentText] = useState('');
+  const [replyingCommentId, setReplyingCommentId] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [notificationCount, setNotificationCount] = useState(0);
   const navigation = useNavigation();
-
+  const flatListRef = useRef(null);
 
   // 1. Fetch dữ liệu từ Supabase
 
-  const fetchReels = async () => {
+  const fetchReels = async (UserReelid = null) => {
     try {
-      const { data, error } = await supabase
-        .from('Reels')
-        .select('*')
-        .eq("permission", "cộng đồng");
+      // Tạo query cơ bản
+      let query = supabase.from('Reels').select('*').eq("permission", "cộng đồng");
+
+      if (UserReelid) {
+        // Nếu có UserReelid, lọc chỉ reel có reelid khớp
+        query = query.eq('reelid', UserReelid);
+      } else {
+        // Nếu không có UserReelid, sắp xếp theo số lượt thích
+        query = query.order('reellike', { ascending: false });
+      }
+
+      // Thực thi query
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching reels:', error.message);
         return;
       }
-      setReels(data || []);
 
+      // Cập nhật state reels
+      setReels(data || []);
     } catch (err) {
       console.error('Unexpected error fetching reels:', err);
     }
   };
-
   // Fetch trạng thái Like của từng Reel
   const fetchLikedReels = async () => {
     try {
@@ -75,26 +92,26 @@ const ReelsScreen = () => {
   // Hàm lấy tất cả comment theo reelid
   const fetchComments = async (reelid) => {
     try {
-      // Bước 1: Lấy bình luận từ bảng 'ReelComment'
+      // Bước 1: Lấy tất cả comment từ bảng 'ReelComment'
       const { data: comments, error: commentsError } = await supabase
         .from('ReelComment')
         .select('*')
         .eq('reelid', reelid)
-        .order('created_at', { ascending: false }); // Sắp xếp bình luận theo thời gian
+        .order('created_at', { ascending: true }); // Sắp xếp bình luận theo thời gian tăng dần
 
       if (commentsError) {
         console.error('Error fetching comments:', commentsError.message);
         return [];
       }
 
-      // Bước 2: Lấy thông tin người dùng cho mỗi bình luận (dựa vào uid)
+      // Bước 2: Lấy thông tin người dùng cho mỗi comment (dựa vào uid)
       const commentsWithUserInfo = await Promise.all(
         comments.map(async (comment) => {
-          // Lấy thông tin người dùng từ bảng 'User' dựa trên uid của mỗi bình luận
           const { data: userData, error: userError } = await supabase
-            .from('User')  // Giả sử bảng chứa thông tin người dùng là 'User'
-            .select('name, avatar')  // Lấy name và avatar
-            .eq('uid', comment.uid);  // Lọc theo uid
+            .from('User') // Bảng chứa thông tin người dùng
+            .select('name, avatar')
+            .eq('uid', comment.uid)
+            .single(); // Dùng single() vì chỉ có một người dùng cho mỗi uid
 
           if (userError) {
             console.error('Error fetching user data:', userError.message);
@@ -105,17 +122,39 @@ const ReelsScreen = () => {
             };
           }
 
-          // Trả về bình luận với thông tin người dùng (name và avatar)
           return {
             ...comment,
-            userName: userData[0]?.name || '',  // Nếu không có dữ liệu người dùng, mặc định là ''
-            userAvatar: userData[0]?.avatar || '',  // Nếu không có avatar, mặc định là ''
+            userName: userData.name || '', // Thêm tên người dùng
+            userAvatar: userData.avatar || '', // Thêm avatar người dùng
           };
         })
       );
 
-      // Trả về danh sách bình luận đã được kết hợp với thông tin người dùng
-      return commentsWithUserInfo;
+      // Bước 3: Tổ chức dữ liệu theo cấu trúc phân cấp (Tree Structure)
+      const commentMap = {};
+      const rootComments = [];
+
+      // Xây dựng map với id của từng comment
+      commentsWithUserInfo.forEach((comment) => {
+        comment.replies = []; // Thêm danh sách reply cho mỗi comment
+        commentMap[comment.id] = comment;
+
+        // Nếu comment có reply, gắn vào danh sách reply của comment gốc
+        if (comment.reply) {
+          const parentComment = commentMap[comment.reply];
+          if (parentComment) {
+            parentComment.replies.push(comment);
+          } else {
+            console.warn(`Không tìm thấy comment gốc cho reply ID: ${comment.id}`);
+          }
+        } else {
+          // Nếu không có reply, đây là comment gốc
+          rootComments.push(comment);
+        }
+      });
+
+      // Trả về danh sách comment gốc với cấu trúc phân cấp
+      return rootComments;
     } catch (err) {
       console.error('Unexpected error fetching comments:', err);
       return [];
@@ -139,17 +178,74 @@ const ReelsScreen = () => {
       console.error('Unexpected error fetching users:', err);
     }
   };
+  // Hàm lấy số lượng thông báo chưa đọc
+  const fetchUnreadNotificationCount = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('Notification_Reel')
+        .select('nid', { count: 'exact' }) // Lấy số lượng thông báo
+        .eq('uid', userId) // Người nhận thông báo
+        .eq('read', false); // Chỉ lấy thông báo chưa đọc
+
+      if (error) {
+        console.error('Error fetching unread notification count:', error);
+        return 0; // Trả về 0 nếu có lỗi
+      }
+
+      return data.length; // Trả về số lượng thông báo chưa đọc
+    } catch (err) {
+      console.error('Error in fetchUnreadNotificationCount:', err);
+      return 0; // Trả về 0 nếu xảy ra lỗi
+    }
+  };
+
 
   // 2. Xử lý hành động người dùng
 
   // Handle Like/Unlike
+  const sendLikeNotification = async (reel, userId, userName) => {
+    try {
+      // Kiểm tra nếu uid và related_uid trùng nhau thì không tạo thông báo
+      if (reel.uid === userId) {
+        console.log("Không cần tạo thông báo vì người thực hiện like là chủ sở hữu Reel.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('Notification_Reel')
+        .insert([
+          {
+            nid: generateUniqueId(),
+            uid: reel.uid, // Người sở hữu Reel
+            notification: `${userName} đã thích Reel của bạn`, // Nội dung thông báo
+            reelid: reel.reelid, // ID của Reel (đảm bảo dùng đúng tên trường)
+            related_uid: userId, // ID của người thực hiện like
+            notification_type: 'like', // Loại thông báo
+            timestamp: new Date().toISOString(), // Thời gian tạo thông báo
+          },
+        ]);
+
+      if (error) {
+        console.error("Error sending like notification: ", error);
+      } else {
+        console.log("Notification sent: ", data);
+      }
+    } catch (err) {
+      console.error("Error in sendLikeNotification: ", err);
+    }
+  };
+
   const handleLike = async (reel) => {
     const user = await supabase.auth.getUser();
     const reelId = reel.reelid;
 
-    // Tạm thời cập nhật giao diện ngay lập tức
+    if (!user.data.user) {
+      console.error("User not logged in");
+      return;
+    }
+
     if (likedReels[reelId]) {
-      // Đã like, chuyển sang unlike
+      // Nếu đã like, chuyển sang unlike
       setLikedReels((prev) => ({ ...prev, [reelId]: false }));
       setReels((prevReels) =>
         prevReels.map((r) =>
@@ -157,7 +253,6 @@ const ReelsScreen = () => {
         )
       );
 
-      // Gửi yêu cầu cập nhật database
       try {
         const { error: deleteError } = await supabase
           .from('ReelLike')
@@ -167,12 +262,22 @@ const ReelsScreen = () => {
 
         if (deleteError) throw deleteError;
 
+        // Xóa thông báo trong bảng Notification_Reel
+        const { error: notificationError } = await supabase
+          .from("Notification_Reel")
+          .delete()
+          .eq("reelid", reelId)
+          .eq("related_uid", user.data.user.id)
+          .eq("notification_type", "like");
+
+        if (notificationError) throw notificationError;
+
         await supabase
           .from('Reels')
           .update({ reellike: reel.reellike - 1 })
           .eq('reelid', reelId);
       } catch (err) {
-        console.error('Error updating likes:', err);
+        console.error("Error updating likes:", err);
 
         // Rollback giao diện nếu xảy ra lỗi
         setLikedReels((prev) => ({ ...prev, [reelId]: true }));
@@ -183,7 +288,7 @@ const ReelsScreen = () => {
         );
       }
     } else {
-      // Chưa like, chuyển sang like
+      // Nếu chưa like, chuyển sang like
       setLikedReels((prev) => ({ ...prev, [reelId]: true }));
       setReels((prevReels) =>
         prevReels.map((r) =>
@@ -191,7 +296,6 @@ const ReelsScreen = () => {
         )
       );
 
-      // Gửi yêu cầu cập nhật database
       try {
         const { error: insertError } = await supabase
           .from('ReelLike')
@@ -203,13 +307,25 @@ const ReelsScreen = () => {
           });
 
         if (insertError) throw insertError;
+        const { data: userData, error: userError } = await supabase
+          .from('User')
+          .select('name')
+          .eq('uid', user.data.user.id)
+          .single();
+
+        if (userError) throw userError;
+
+        const userName = userData.name;
+        // Gọi hàm sendLikeNotification
+        await sendLikeNotification(reel, user.data.user.id, userName);
+        console.log(userName);
 
         await supabase
           .from('Reels')
           .update({ reellike: (reel.reellike || 0) + 1 })
           .eq('reelid', reelId);
       } catch (err) {
-        console.error('Error updating likes:', err);
+        console.error("Error updating likes:", err);
 
         // Rollback giao diện nếu xảy ra lỗi
         setLikedReels((prev) => ({ ...prev, [reelId]: false }));
@@ -221,82 +337,339 @@ const ReelsScreen = () => {
       }
     }
   };
-
-  const handleComment = async (reel, commentText) => {
-    // Lấy thông tin người dùng hiện tại
-    const user = await supabase.auth.getUser();
-    const reelId = reel.reelid;
-
-    // Kiểm tra nếu commentText trống, không gửi comment
-    if (!commentText.trim()) {
-      alert('Comment không được để trống');
-      return;
-    }
-
-    // Tạo một comment mới (chưa có userAvatar và userName)
-    const newComment = {
-      id: generateUniqueId(),  // Tạo ID duy nhất cho comment
-      reelid: reelId,          // ID của reel mà comment đang được thêm vào
-      uid: user.data.user.id,  // ID người dùng hiện tại
-      comment: commentText,    // Nội dung comment
-      created_at: new Date().toISOString(), // Thời gian tạo comment
-    };
-
+  ;
+  const sendCommentNotification = async (reel, userId, userName, id) => {
     try {
+      // Kiểm tra nếu uid và related_uid trùng nhau thì không tạo thông báo
+      if (reel.uid === userId) {
+        console.log("Không cần tạo thông báo vì người thực hiện like là chủ sở hữu Reel.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('Notification_Reel')
+        .insert([
+          {
+            nid: generateUniqueId(),
+            uid: reel.uid, // Người sở hữu Reel
+            notification: `${userName} đã bình luận Reel của bạn`, // Nội dung thông báo
+            reelid: reel.reelid, // ID của Reel (đảm bảo dùng đúng tên trường)
+            related_uid: userId, // ID của người thực hiện like
+            notification_type: 'comment', // Loại thông báo
+            timestamp: new Date().toISOString(), // Thời gian tạo thông báo
+            commentid: id,
+          },
+        ]);
+
+      if (error) {
+        console.error("Error sending like notification: ", error);
+      } else {
+        console.log("Notification sent: ", data);
+      }
+    } catch (err) {
+      console.error("Error in sendLikeNotification: ", err);
+    }
+  };
+  const handleComment = async (reel, commentText) => {
+    try {
+      // Kiểm tra nếu commentText trống, không gửi comment
+      if (!commentText.trim()) {
+        alert('Comment không được để trống');
+        return;
+      }
+
+      const user = await supabase.auth.getUser();
+      const reelId = reel.reelid;
+
+      // Kiểm tra nếu không có reelId hoặc không có user
+      if (!reelId || !user || !user.data || !user.data.user || !user.data.user.id) {
+        console.error('Thông tin người dùng hoặc reel không hợp lệ');
+        return;
+      }
+      const id = generateUniqueId();
+      const newComment = {
+        id: id,
+        reelid: reelId,
+        uid: user.data.user.id,
+        comment: commentText,
+        created_at: new Date().toISOString(),
+      };
+
       // Gửi comment lên cơ sở dữ liệu
       const { error: insertError } = await supabase
-        .from('ReelComment') // Giả sử bảng 'ReelComment' chứa các comment
+        .from('ReelComment')
         .insert(newComment);
 
-      // Nếu có lỗi trong quá trình insert, ném lỗi và thông báo
       if (insertError) throw insertError;
 
       // Truy vấn thông tin người dùng (avatar và tên)
       const { data: userData, error: userError } = await supabase
-        .from('User') // Giả sử bạn có bảng 'Users' chứa thông tin người dùng
+        .from('User')
         .select('avatar, name')
-        .eq('uid', user.data.user.id) // Tìm thông tin người dùng dựa trên ID
+        .eq('uid', user.data.user.id)
         .single();
 
-      if (userError) {
-        throw userError;
-      }
+      if (userError) throw userError;
 
-      // Thêm comment vào danh sách bình luận trong selectedReel, bao gồm userAvatar và userName
       const updatedComment = {
-        ...newComment, // Thêm các thông tin comment hiện tại
-        userAvatar: userData.avatar, // Thêm avatar của người dùng
-        userName: userData.name,   // Thêm tên người dùng
+        ...newComment,
+        userAvatar: userData.avatar,
+        userName: userData.name,
       };
 
-      // Cập nhật lại selectedReel với comment mới
-      setSelectedReel((prevReel) => ({
-        ...prevReel,
-        comments: [
-          ...prevReel.comments,  // Giữ lại các comment cũ
-          updatedComment,         // Thêm comment mới đã có đầy đủ thông tin
-        ],
-      }));
+      const userName = userData.name;
+      // Gọi hàm sendCommentNotification
+      await sendCommentNotification(reel, user.data.user.id, userName, id);
+      console.log(userName);
 
-      // Cập nhật số lượng comment trong bảng 'Reel'
-      const { error: updateError } = await supabase
-        .from('Reels') // Cập nhật bảng 'Reels'
-        .update({
-          reelcomment: reel.reelcomment + 1, // Tăng số lượng comment lên 1
-        })
-        .eq('reelid', reelId); // Cập nhật dựa trên reelId
-
-      if (updateError) {
-        throw updateError;
+      // Cập nhật comment vào selectedReel nếu selectedReel tồn tại
+      if (selectedReel) {
+        setSelectedReel((prevReel) => ({
+          ...prevReel,
+          comments: prevReel ? [...prevReel.comments, updatedComment] : [updatedComment],
+        }));
       }
 
-      // Làm trống ô input sau khi gửi bình luận
-      setCommentText('');
+      // Cập nhật lại danh sách reels trong state sau khi cập nhật số lượng comment
+      setReels((prevReels) => {
+        return prevReels.map((prevReel) =>
+          prevReel.reelid === reelId
+            ? { ...prevReel, reelcomment: prevReel.reelcomment + 1 }
+            : prevReel
+        );
+      });
 
+      // Làm trống ô input sau khi gửi comment
+      setCommentText('');
       console.log('Comment đã được thêm thành công!');
     } catch (err) {
       console.error('Lỗi khi thêm comment:', err);
     }
+  };
+  // Hàm đệ quy: Thêm reply vào danh sách comment
+  const addReplyToComment = (comments, targetCommentId, updatedComment) => {
+    return comments.map((currentComment) => {
+      if (currentComment.id === targetCommentId) {
+        return {
+          ...currentComment,
+          replies: [...(currentComment.replies || []), updatedComment], // Thêm reply vào mảng replies
+        };
+      }
+      if (currentComment.replies && currentComment.replies.length > 0) {
+        return {
+          ...currentComment,
+          replies: addReplyToComment(currentComment.replies, targetCommentId, updatedComment), // Đệ quy
+        };
+      }
+      return currentComment;
+    });
+  };
+
+  const handleSendReply = async (reel, replyText, comment) => {
+    if (replyText.trim() === '') {
+      alert('Vui lòng nhập câu trả lời.');
+      return;
+    }
+
+    try {
+      const user = await supabase.auth.getUser();
+      const reelId = reel.reelid;
+      const id = generateUniqueId();
+      // Tạo một comment mới
+      const newComment = {
+        id: id, // Tạo ID duy nhất cho comment
+        reelid: reelId,         // ID của reel mà comment đang được thêm vào
+        uid: user.data.user.id,      // ID người dùng hiện tại
+        comment: replyText,     // Nội dung comment
+        reply: comment.id,      // ID của comment gốc (để xác định reply)
+        created_at: new Date().toISOString(), // Thời gian tạo comment
+      };
+
+      // Gửi comment lên cơ sở dữ liệu
+      const { error: insertError } = await supabase.from('ReelComment').insert(newComment);
+      if (insertError) throw insertError;
+
+      // Truy vấn thông tin người dùng (avatar và tên)
+      const { data: userData, error: userInfoError } = await supabase
+        .from('User')
+        .select('avatar, name')
+        .eq('uid', user.data.user.id)
+        .single();
+
+      if (userInfoError || !userData) {
+        throw new Error('Không thể lấy thông tin người dùng để cập nhật comment.');
+      }
+
+      // Thêm thông tin người dùng vào comment mới
+      const updatedComment = {
+        ...newComment,
+        userAvatar: userData.avatar,
+        userName: userData.name,
+        replies: [], // Khởi tạo mảng replies rỗng
+      };
+      const userName = userData.name;
+      // Gọi hàm sendCommentNotification
+      await sendCommentNotification(reel, user.data.user.id, userName, id);
+      console.log(userName);
+
+      // Cập nhật selectedReel với reply mới
+      setSelectedReel((prevReel) => ({
+        ...prevReel,
+        comments: addReplyToComment(prevReel.comments, comment.id, updatedComment),
+      }));
+
+      // Cập nhật lại danh sách reels trong state
+      setReels((prevReels) =>
+        prevReels.map((prevReel) =>
+          prevReel.reelid === reelId
+            ? { ...prevReel, reelcomment: prevReel.reelcomment + 1 }
+            : prevReel
+        )
+      );
+
+      // Làm trống ô input sau khi gửi bình luận
+      setCommentText('');
+      console.log('Reply đã được thêm thành công!');
+    } catch (err) {
+      console.error('Lỗi khi thêm reply:', err);
+    }
+
+    // Reset input và ẩn giao diện trả lời
+    setReplyingCommentId(null); // Ẩn input trả lời
+    setReplyText(''); // Reset nội dung trả lời
+  };
+
+  const handleDeleteComment = (reel, commentId) => {
+    Alert.alert(
+      "Xác nhận xóa",
+      "Bạn có chắc chắn muốn xóa bình luận này và tất cả các trả lời liên quan?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xóa",
+          onPress: async () => {
+            try {
+              console.log("Xóa comment ID:", commentId);
+
+              // Hàm đệ quy để thu thập tất cả comment ID (bao gồm replies)
+              const collectAllCommentIds = (comments, targetId) => {
+                let idsToDelete = [];
+                comments.forEach((comment) => {
+                  if (comment.id === targetId) {
+                    idsToDelete.push(comment.id); // Thêm comment gốc vào danh sách xóa
+                    if (comment.replies && comment.replies.length > 0) {
+                      comment.replies.forEach((reply) => {
+                        idsToDelete = idsToDelete.concat(
+                          collectAllCommentIds(comment.replies, reply.id)
+                        );
+                      });
+                    }
+                  }
+                });
+                return idsToDelete;
+              };
+
+              // Thu thập tất cả ID comment cần xóa
+              const allCommentIdsToDelete = collectAllCommentIds(
+                selectedReel.comments,
+                commentId
+              );
+              const numberOfDeletedComments = allCommentIdsToDelete.length;
+              console.log("Số cmt bị xóa :", numberOfDeletedComments);
+
+              // Xóa comment trên giao diện (UI)
+              setSelectedReel((prevReel) => ({
+                ...prevReel,
+                comments: prevReel.comments.filter(
+                  (comment) => !allCommentIdsToDelete.includes(comment.id)
+                ),
+                reelcomment:
+                  prevReel.reelcomment - numberOfDeletedComments > 0
+                    ? prevReel.reelcomment - numberOfDeletedComments
+                    : 0, // Đảm bảo reelcomment không giảm xuống dưới 0
+              }));
+
+              setReels((prevReels) =>
+                prevReels.map((prevReel) =>
+                  prevReel.reelid === reel.reelid
+                    ? {
+                      ...prevReel,
+                      reelcomment:
+                        prevReel.reelcomment - numberOfDeletedComments > 0
+                          ? prevReel.reelcomment - numberOfDeletedComments
+                          : 0, // Trừ số comment đã xóa
+                    }
+                    : prevReel
+                )
+              );
+
+              // **Xóa dữ liệu từ cơ sở dữ liệu**
+
+              // Xóa các thông báo liên quan trong bảng Notification_Reel
+              const { error: notificationError } = await supabase
+                .from("Notification_Reel")
+                .delete()
+                .in("commentid", allCommentIdsToDelete); // Xóa bằng danh sách ID comment
+
+              if (notificationError) {
+                console.error(
+                  "Lỗi khi xóa thông báo liên quan:",
+                  notificationError
+                );
+                return;
+              }
+
+              // Xóa các comment liên quan trong bảng ReelComment
+              const { error: deleteError } = await supabase
+                .from("ReelComment")
+                .delete()
+                .in("id", allCommentIdsToDelete); // Xóa hàng loạt bằng danh sách ID
+
+              if (deleteError) {
+                console.error("Lỗi khi xóa comment:", deleteError);
+                return;
+              }
+
+              console.log("Xóa comment và các thông báo liên quan thành công!");
+            } catch (err) {
+              console.error("Lỗi trong quá trình xóa comment:", err);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+
+
+  const handleDeleteReel = async (reel) => {
+    Alert.alert(
+      "Xác nhận xóa",
+      "Bạn có chắc chắn muốn xóa reel này?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xóa",
+          onPress: async () => {
+            try {
+              const result = await deleteReelAndRelatedData(reel);
+              if (result.success) {
+                alert(result.message); // Thông báo xóa thành công
+                // Cập nhật giao diện, ví dụ: gọi lại danh sách reel
+                setReels((prevReels) =>
+                  prevReels.filter((item) => item.reelid !== reel.reelid) // Sửa `reel.reelid` thành `item.reelid`
+                );
+              } else {
+                alert(result.message); // Thông báo lỗi
+              }
+            } catch (error) {
+              console.error("Error in handleDeleteReel:", error);
+              alert("Đã xảy ra lỗi khi xóa reel.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handlePlayPause = (index) => {
@@ -329,7 +702,14 @@ const ReelsScreen = () => {
     setSelectedReel(reel);
     setTimeout(() => {
       setIsModalVisible(true);
-    }, 10); // Đặt một chút thời gian trễ để giảm tải UI
+    }, 0); // Đặt một chút thời gian trễ để giảm tải UI
+
+    videoRefs.current.forEach((video, index) => {
+      if (video) {
+        video.pauseAsync();
+        setPlayingVideos((prev) => ({ ...prev, [index]: false }));
+      }
+    });
 
     const comments = await fetchComments(reel.reelid);
     setSelectedReel(prevState => ({
@@ -340,11 +720,43 @@ const ReelsScreen = () => {
 
   };
 
-  const closeModal = () => {
-    setIsModalVisible(false); // Đóng Modal
+  const closeModal = async (reel) => {
+    setIsModalVisible(false);
+    const reelId = reel.reelid;
+    const { data: commentCountData, error: countError } = await supabase
+      .from("ReelComment")
+      .select("*", { count: "exact" }) // Đếm số lượng comment
+      .eq("reelid", reelId);
+
+    if (countError) {
+      throw countError;
+    }
+
+    const commentCount = commentCountData.length; // Lấy số lượng comment
+
+    // Cập nhật số lượng comment vào bảng 'Reels'
+    const { error: updateError } = await supabase
+      .from("Reels")
+      .update({ reelcomment: commentCount }) // Cập nhật số lượng comment
+      .eq("reelid", reelId);
+
+    if (updateError) {
+      throw updateError;
+    }
     setSelectedReel(null);
-    handleReload();
   };
+  const handleReply = (comment) => {
+    if (replyingCommentId === comment.id) {
+      // Đang trả lời comment này -> ẩn input
+      setReplyingCommentId(null);
+      setReplyText(''); // Xóa nội dung trả lời
+    } else {
+      // Hiển thị input cho comment này
+      setReplyingCommentId(comment.id);
+      setReplyText(`@${comment.userName} `);
+    }
+  };
+
 
   // Hàm tua nhanh 5 giây
   const seekForward = (index) => {
@@ -390,8 +802,11 @@ const ReelsScreen = () => {
   const viewabilityConfigCallback = useRef(onViewableItemsChanged);
 
   // Hàm để load lại dữ liệu
-  const handleReload = () => {
-    fetchReels();
+  const handleReload = async () => {
+    await fetchReels();
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ animated: true, offset: 0 });
+    }
     fetchUser();
   };
   const handleLoad = async (index) => {
@@ -417,21 +832,56 @@ const ReelsScreen = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      await fetchReels();
+      const reelidFromNavigation = route.params?.UserReelid || null; // Nhận reelid từ navigation
+      await fetchReels(reelidFromNavigation);
       await fetchLikedReels();
+      const fetchNotifications = async () => {
+        const user = await supabase.auth.getUser();
+
+        if (!user.data.user) {
+          console.error('User not logged in');
+          return;
+        }
+
+        const userId = user.data.user.id;
+
+        // Lấy số lượng thông báo chưa đọc
+        const count = await fetchUnreadNotificationCount(userId);
+        setNotificationCount(count);
+      };
+
+      fetchNotifications();
+
+      // Lặp lại kiểm tra sau mỗi 30 giây (nếu cần)
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval); // Dọn dẹp interval khi component unmount
     };
     fetchData();
+    const fetchCurrentUserId = async () => {
+      // Giả sử là API trả về currentUserId
+      const user = await supabase.auth.getUser();
+      setCurrentUserId(user.data.user.id);
+    };
+
+    fetchCurrentUserId();
   }, []);
 
   useEffect(() => {
     fetchUser();
+    reels.forEach((_, index) => handleLoad(index));
   }, [reels]);
+  useEffect(() => {
+    fetchReels(UserReelid);
+  }, [UserReelid]);
 
   // Dừng tất cả video khi mất focus
   useFocusEffect(
     React.useCallback(() => {
+      // Mỗi khi màn hình được focus, fetch lại dữ liệu
+      fetchReels();
+
+      // Dừng tất cả video khi chuyển sang trang khác
       return () => {
-        // Dừng tất cả video khi chuyển sang trang khác
         videoRefs.current.forEach((video, index) => {
           if (video) {
             video.pauseAsync();
@@ -441,7 +891,6 @@ const ReelsScreen = () => {
       };
     }, [])
   );
-
 
   // Hàm sinh ID duy nhất
   const generateUniqueId = () => {
@@ -461,64 +910,172 @@ const ReelsScreen = () => {
     if (number < 1_000_000_000) return (number / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'; // Từ 1 triệu đến dưới 1 tỷ
     return (number / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B'; // Trên 1 tỷ
   };
+  const deleteReelAndRelatedData = async (reel) => {
+    try {
+      // 1. Xóa dữ liệu từ bảng ReelComment
+      const { error: commentError } = await supabase
+        .from("ReelComment")
+        .delete()
+        .eq("reelid", reel.reelid);
+
+      if (commentError) {
+        console.error("Error deleting comments:", commentError);
+        return { success: false, message: "Không thể xóa bình luận của reel." };
+      }
+
+      // 2. Xóa dữ liệu từ bảng ReelLike
+      const { error: likeError } = await supabase
+        .from("ReelLike")
+        .delete()
+        .eq("reelid", reel.reelid);
+
+      if (likeError) {
+        console.error("Error deleting likes:", likeError);
+        return { success: false, message: "Không thể xóa lượt thích của reel." };
+      }
+
+      // 3. Xóa dữ liệu từ bảng Notification_Reel
+      const { error: notificationError } = await supabase
+        .from("Notification_Reel")
+        .delete()
+        .eq("reelid", reel.reelid);
+
+      if (notificationError) {
+        console.error("Error deleting notifications:", notificationError);
+        return { success: false, message: "Không thể xóa thông báo của reel." };
+      }
+
+      // 4. Xóa file trong bucket
+      const { error: storageError } = await supabase.storage
+        .from("Reel_SocialApp") // Tên bucket
+        .remove([reel.reelurl]); // Đường dẫn đến file
+
+      if (storageError) {
+        console.error("Error deleting file in bucket:", storageError);
+        return { success: false, message: "Không thể xóa dữ liệu trong bucket." };
+      }
+
+      // 5. Xóa reel từ bảng Reel
+      const { error: reelError } = await supabase
+        .from("Reels")
+        .delete()
+        .eq("reelid", reel.reelid);
+
+      if (reelError) {
+        console.error("Error deleting reel:", reelError);
+        return { success: false, message: "Không thể xóa reel." };
+      }
+
+      console.log(`Reel with ID ${reel.reelid} and related data have been deleted successfully.`);
+      return { success: true, message: "Reel và tất cả thông tin liên quan đã được xóa thành công." };
+    } catch (err) {
+      console.error("Error in deleteReelAndRelatedData:", err);
+      return { success: false, message: "Đã xảy ra lỗi khi xóa reel và các thông tin liên quan." };
+    }
+  };
+  const handleGoBack = () => {
+    if (setUserReelid) {
+      setUserReelid(null); // Đặt lại UserReelid thành null
+    }
+    navigation.navigate("Profile", {
+      screen: "ProfileTab", // Điều hướng đến ProfileTab
+      params: {
+        userId: ProfileId, // Truyền userId vào params
+        activeSection: 'reel',
+      },
+    });
+  };
+
+  const handleGoProfile = (uid) => {
+    navigation.navigate("Profile", {
+      screen: "ProfileTab", // Điều hướng đến ProfileTab
+      params: {
+        userId: uid, // Truyền userId vào params
+        activeSection: 'reel',
+      },
+    });
+  };
+
 
 
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.logo}>Reels</Text>
+        {/* Kiểm tra nếu chỉ có một reel */}
+        {reels.length === 1 && (
+          <TouchableOpacity onPress={handleGoBack}>
+            {/* Hiển thị icon back */}
+            <Icon name="arrow-back" size={30} color="black" />
+          </TouchableOpacity>
+        )}
+        <View style={styles.logoContainer}>
+          <Text style={styles.logo}>Reels</Text>
+        </View>
         <View style={styles.headerIcons}>
           <TouchableOpacity onPress={() => navigation.navigate("CreateReel")}>
             <Icon name="add-circle-outline" size={30} color="black" style={styles.icon} />
           </TouchableOpacity>
-          <TouchableOpacity>
-            <Icon name="search-outline" size={30} color="black" style={styles.icon} />
+          <TouchableOpacity onPress={() => navigation.navigate('NotificationsReelScreen')}>
+            <View>
+              <Icon name="notifications-outline" size={30} color="black" style={styles.icon} />
+              {notificationCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationText}>{notificationCount}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
-          {/* Thêm nút load lại */}
-          <TouchableOpacity onPress={handleReload} style={styles.reloadButton}>
+          <TouchableOpacity onPress={handleReload}>
             <Icon name="reload" size={30} color="black" style={styles.icon} />
           </TouchableOpacity>
         </View>
       </View>
 
+      {/* Video List */}
       <FlatList
+        ref={flatListRef}
         style={styles.list}
         data={reels}
         keyExtractor={(item) => item.reelid.toString()}
         renderItem={({ item, index }) => {
           const userItem = user.find((u) => u.uid === item.uid);
+
           return (
             <View style={styles.reelContainer}>
+              {/* Video Player */}
               <TouchableOpacity onPress={() => handlePlayPause(index)}>
                 <View style={styles.videoContainer}>
                   <Video
-                    ref={(ref) => { videoRefs.current[index] = ref; }}
+                    ref={(ref) => {
+                      if (ref) videoRefs.current[index] = ref;
+                    }}
                     source={{ uri: item.reelurl }}
                     style={styles.video}
-                    resizeMode='contain'
+                    resizeMode="contain"
                     isLooping
                     shouldPlay={playingVideos[index] || false}
                     onPlaybackStatusUpdate={(status) => {
                       if (status.isLoaded) {
                         setCurrentTime((prev) => ({
                           ...prev,
-                          [index]: status.positionMillis, // Thời gian hiện tại của video
+                          [index]: status.positionMillis,
                         }));
                         setSliderValue((prev) => ({
                           ...prev,
-                          [index]: status.positionMillis / (status.durationMillis || 1), // Tỷ lệ %
+                          [index]: status.positionMillis / (status.durationMillis || 1),
                         }));
                         if (!status.isPlaying && playingVideos[index]) {
-                          videoRefs.current[index].playAsync(); // Tự phát khi cần
+                          videoRefs.current[index]?.playAsync();
                         }
                       }
                     }}
-
-
                     onLoad={() => handleLoad(index)}
                     onEnd={() => handleVideoEnd(index)}
                   />
+
+                  {/* Play/Pause Controls */}
                   {!playingVideos[index] && (
                     <>
                       <TouchableOpacity
@@ -542,135 +1099,298 @@ const ReelsScreen = () => {
                     </>
                   )}
 
+                  {/* Volume Button */}
                   <TouchableOpacity
                     style={styles.volumeButton}
                     onPress={() => handleMuteUnmute(index)}
                   >
                     <Icon
-                      name={muted[index] ? 'volume-mute' : 'volume-high'}
+                      name={muted[index] ? "volume-mute" : "volume-high"}
                       size={30}
                       color="white"
                     />
                   </TouchableOpacity>
+                  {currentUserId === item.uid && (
+                    <TouchableOpacity
+                      style={{ position: 'absolute', right: 20, top: 20 }}
+                      onPress={() => handleDeleteReel(item)}
+                    >
+                      <Icon
+                        name="trash-outline"
+                        size={25}
+                        color="red"
+                      />
+                    </TouchableOpacity>
+                  )}
 
+                  {/* Slider */}
+                  <Slider
+                    style={styles.slider}
+                    minimumValue={0}
+                    maximumValue={durations[index] || 1}
+                    value={currentTime[index] || 0}
+                    onSlidingComplete={async (value) => {
+                      const videoRef = videoRefs.current[index];
+                      if (videoRef) {
+                        await videoRef.setPositionAsync(value);
+                      }
+                    }}
+                    minimumTrackTintColor="#FFFFFF"
+                    maximumTrackTintColor="#808080"
+                  />
+
+                  {/* Time Display */}
+                  <View style={styles.timeContainer}>
+                    <Text style={styles.slidertimeText}>
+                      {currentTime[index]
+                        ? new Date(currentTime[index]).toISOString().substr(14, 5)
+                        : "00:00"}
+                    </Text>
+                    <Text style={styles.slidertimeText}>/</Text>
+                    <Text style={styles.slidertimeText}>
+                      {durations[index]
+                        ? new Date(durations[index]).toISOString().substr(14, 5)
+                        : "00:00"}
+                    </Text>
+                  </View>
+
+                  {/* User Actions */}
                   {userItem && (
                     <>
                       <View style={styles.actionsContainer}>
-                        <TouchableOpacity style={styles.actionButton}>
-                          <Icon name="share-social-outline" size={30} color="white" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionButton} onPress={() => openModal(item)}>
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={() => openModal(item)}
+                        >
                           <Icon name="chatbubble-outline" size={30} color="white" />
-                          <Text style={styles.commentCount}>{formatNumber(item.reelcomment || 0)}</Text>
+                          <Text style={styles.commentCount}>
+                            {formatNumber(item.reelcomment || 0)}
+                          </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.actionButton}
                           onPress={() => handleLike(item)}
                         >
                           <Icon
-                            name={likedReels[item.reelid] ? 'heart' : 'heart-outline'}
+                            name={likedReels[item.reelid] ? "heart" : "heart-outline"}
                             size={30}
-                            color={likedReels[item.reelid] ? 'red' : 'white'}
+                            color={likedReels[item.reelid] ? "red" : "white"}
                           />
-                          <Text style={styles.likeCount}>{formatNumber(item.reellike || 0)}</Text>
+                          <Text style={styles.likeCount}>
+                            {formatNumber(item.reellike || 0)}
+                          </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionButton}>
-                          <Image source={{ uri: userItem.avatar || "https://via.placeholder.com/150" }} style={styles.avatar} />
+                        <TouchableOpacity style={styles.actionButton} onPress={() => handleGoProfile(item.uid)}>
+                          <Image
+                            source={{
+                              uri:
+                                userItem.avatar ||
+                                "https://via.placeholder.com/150",
+                            }}
+                            style={styles.avatar}
+                          />
                         </TouchableOpacity>
-
                       </View>
-                      <Text style={styles.reelTitle}>{userItem.name}</Text>
+                      <TouchableOpacity onPress={() => handleGoProfile(item.uid)}>
+                        <Text style={styles.reelname}>{userItem.name}</Text>
+                      </TouchableOpacity>
                       <Text style={styles.reelDesc}>{item.reeldesc}</Text>
                     </>
                   )}
-                  <TouchableOpacity>
-                    <Slider
-                      style={styles.slider}
-                      minimumValue={0}
-                      maximumValue={durations[index] || 1} // Tránh chia cho 0
-                      value={currentTime[index] || 0} // Giá trị thời gian hiện tại
-                      onSlidingComplete={async (value) => {
-                        const videoRef = videoRefs.current[index];
-                        if (videoRef) {
-                          await videoRef.setPositionAsync(value); // Đặt vị trí mới
-                        }
-                      }}
-                      minimumTrackTintColor="#FFFFFF"
-                      maximumTrackTintColor="#808080"
-                    />
+                </View>
+              </TouchableOpacity>
+              {/* Modal for Comments */}
+              {selectedReel && (
+                <Modal
+                  animationType="slide"
+                  transparent={true}
+                  visible={isModalVisible}
+                  onRequestClose={closeModal}
+                >
+                  <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                      <Text style={styles.modalTitle}>Comments</Text>
+                      <TouchableOpacity
+                        onPress={() => closeModal(selectedReel)}
+                        style={styles.closeButton}
+                      >
+                        <Icon name="close" size={35} color="black" />
+                      </TouchableOpacity>
 
-                  </TouchableOpacity>
+                      {/* Render danh sách comment và reply */}
+                      <FlatList
+                        data={selectedReel.comments || []}
+                        style={{ marginTop: 20 }}
+                        keyExtractor={(comment) => comment.id.toString()}
+                        renderItem={({ item }) => {
+                          const renderReplies = (replies, depth) =>
+                            replies.map((reply) => (
+                              <View
+                                key={reply.id}
+                                style={{ marginLeft: depth * 30, marginBottom: 10 }}
+                              >
+                                <View style={styles.commentContainer}>
+                                  <Image
+                                    source={{
+                                      uri: reply.userAvatar || "https://via.placeholder.com/150",
+                                    }}
+                                    style={styles.avatar}
+                                  />
+                                  <View style={styles.comment}>
+                                    <Text style={styles.userName}>{reply.userName}</Text>
+                                    <Text style={styles.commentText}>{reply.comment}</Text>
+                                    {currentUserId === reply.uid && (
+                                      <TouchableOpacity
+                                        style={{ position: "absolute", right: 10, bottom: 10 }}
+                                        onPress={() =>
+                                          handleDeleteComment(selectedReel, reply.id)
+                                        }
+                                      >
+                                        <Icon
+                                          name="trash-outline"
+                                          size={20}
+                                          color="red"
+                                        />
+                                      </TouchableOpacity>
+                                    )}
+                                    <View style={styles.rowContainer}>
+                                      <Text style={styles.timeText}>
+                                        {dayjs(reply.created_at).fromNow()}
+                                      </Text>
+                                      <TouchableOpacity onPress={() => handleReply(reply)}>
+                                        <Text style={styles.replyText}>Trả lời</Text>
+                                      </TouchableOpacity>
+                                    </View>
 
-                  <View style={styles.timeContainer}>
-                    <Text style={styles.slidertimeText}>
-                      {currentTime[index] ? new Date(currentTime[index]).toISOString().substr(14, 5) : '00:00'}
-                    </Text>
-                    <Text style={styles.slidertimeText}>/</Text>
-                    <Text style={styles.slidertimeText}>
-                      {durations[index] ? new Date(durations[index]).toISOString().substr(14, 5) : '00:00'}
-                    </Text>
-                  </View>
+                                    {replyingCommentId === reply.id && (
+                                      <View style={styles.replyInputContainer}>
+                                        <TextInput
+                                          style={styles.replyInput}
+                                          placeholder="Nhập câu trả lời..."
+                                          value={replyText}
+                                          onChangeText={setReplyText}
+                                        />
+                                        <TouchableOpacity
+                                          style={styles.closeInputButton}
+                                          onPress={() => setReplyingCommentId(null)}
+                                        >
+                                          <Text style={styles.closeButtonText}>Đóng</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                          style={styles.sendButton}
+                                          onPress={() =>
+                                            handleSendReply(selectedReel, replyText, reply)
+                                          }
+                                        >
+                                          <Icon name="send" size={20} color="white" />
+                                        </TouchableOpacity>
+                                      </View>
+                                    )}
+                                  </View>
+                                </View>
+                                {reply.replies && renderReplies(reply.replies, depth + 1)}
+                              </View>
+                            ));
 
-                  {/* Modal hiển thị bình luận */}
-                  {selectedReel && (
-                    <Modal
-                      animationType="slide"
-                      transparent={true}
-                      visible={isModalVisible}
-                      onRequestClose={closeModal}
-                    >
-                      <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                          <Text style={styles.modalTitle}>Bình luận về Reel</Text>
-                          <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-                            <Icon name="close" size={35} color="black" />
-                          </TouchableOpacity>
-                          <FlatList
-                            data={selectedReel.comments} // Giả sử bạn có phần comments trong Reel
-                            style={{ marginTop: 20 }}
-                            keyExtractor={(comment) => comment.id.toString()}
-                            renderItem={({ item }) => (
+                          return (
+                            <View key={item.id} style={{ marginBottom: 10 }}>
+                              {/* Bình luận gốc */}
                               <View style={styles.commentContainer}>
                                 <Image
-                                  source={{ uri: item.userAvatar || "https://via.placeholder.com/150" }}
+                                  source={{
+                                    uri: item.userAvatar || "https://via.placeholder.com/150",
+                                  }}
                                   style={styles.avatar}
                                 />
                                 <View style={styles.comment}>
                                   <Text style={styles.userName}>{item.userName}</Text>
                                   <Text style={styles.commentText}>{item.comment}</Text>
-                                  <Text style={styles.timeText}>{dayjs(item.created_at).fromNow()}</Text>
+                                  {currentUserId === item.uid && (
+                                    <TouchableOpacity
+                                      style={{ position: "absolute", right: 10, bottom: 10 }}
+                                      onPress={() => handleDeleteComment(selectedReel, item.id)}
+                                    >
+                                      <Icon
+                                        name="trash-outline"
+                                        size={20}
+                                        color="red"
+                                      />
+                                    </TouchableOpacity>
+                                  )}
+                                  <View style={styles.rowContainer}>
+                                    <Text style={styles.timeText}>
+                                      {dayjs(item.created_at).fromNow()}
+                                    </Text>
+                                    <TouchableOpacity onPress={() => handleReply(item)}>
+                                      <Text style={styles.replyText}>Trả lời</Text>
+                                    </TouchableOpacity>
+                                  </View>
+
+                                  {replyingCommentId === item.id && (
+                                    <View style={styles.replyInputContainer}>
+                                      <TextInput
+                                        style={styles.replyInput}
+                                        placeholder="Nhập câu trả lời..."
+                                        value={replyText}
+                                        onChangeText={setReplyText}
+                                      />
+                                      <TouchableOpacity
+                                        style={styles.closeInputButton}
+                                        onPress={() => setReplyingCommentId(null)}
+                                      >
+                                        <Text style={styles.closeButtonText}>Đóng</Text>
+                                      </TouchableOpacity>
+                                      <TouchableOpacity
+                                        style={styles.sendButton}
+                                        onPress={() =>
+                                          handleSendReply(selectedReel, replyText, item)
+                                        }
+                                      >
+                                        <Icon name="send" size={20} color="white" />
+                                      </TouchableOpacity>
+                                    </View>
+                                  )}
                                 </View>
                               </View>
-                            )}
-                          />
-                          <View style={styles.inputContainer}>
-                            <TextInput
-                              style={styles.commentInput}
-                              placeholder="Thêm bình luận..."
-                              value={commentText}
-                              onChangeText={setCommentText} // Lưu giá trị nhập vào
-                            />
-                            {/* Nút gửi bình luận */}
-                            <TouchableOpacity
-                              style={styles.submitButton}
-                              onPress={() => handleComment(selectedReel, commentText)} // Gọi hàm handleComment khi gửi bình luận
-                            >
-                              <Icon name="send" size={20} color="white" />
-                            </TouchableOpacity>
-                          </View>
-                        </View>
+
+                              {/* Render replies */}
+                              {item.replies && renderReplies(item.replies, 1)}
+                            </View>
+                          );
+                        }}
+                      />
+
+                      {/* Input thêm comment */}
+                      <View style={styles.inputContainer}>
+                        <TextInput
+                          style={styles.commentInput}
+                          placeholder="Add a comment..."
+                          value={commentText}
+                          onChangeText={setCommentText}
+                        />
+                        <TouchableOpacity
+                          style={styles.submitButton}
+                          onPress={() => handleComment(selectedReel, commentText)}
+                        >
+                          <Icon name="send" size={20} color="white" />
+                        </TouchableOpacity>
                       </View>
-                    </Modal>
-                  )}
-                </View>
-              </TouchableOpacity>
-            </View >
+                    </View>
+                  </View>
+                </Modal>
+
+              )}
+            </View>
           );
         }}
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={viewabilityConfigCallback.current}
+        pagingEnabled={true}
+        snapToAlignment="start"
+        snapToInterval={height * 0.85 + 80}
+        decelerationRate="fast"
       />
-    </SafeAreaView >
+    </SafeAreaView>
   );
 };
 
@@ -687,6 +1407,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
+  },
+  logoContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute', // Đặt logo ở vị trí tuyệt đối
+    left: 0,
+    right: 0,
   },
   logo: {
     fontSize: 28,
@@ -716,7 +1444,7 @@ const styles = StyleSheet.create({
   },
   video: {
     width: '100%',
-    height: '100%',
+    height: height * 0.85,
   },
   avatar: {
     width: 40,
@@ -725,29 +1453,22 @@ const styles = StyleSheet.create({
     marginVertical: -5,
     marginHorizontal: -10,
   },
-  reelTitle: {
+  reelname: {
     position: 'absolute',
-    bottom: 20,
-    left: 10,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    padding: 5,
-    borderRadius: 5,
-    marginVertical: 130,
-    marginHorizontal: 10,
+    fontSize: 20, // Kích thước chữ cho tiêu đề
+    fontWeight: 'bold', // In đậm để nổi bật
+    color: 'white', // Màu chữ
+    textAlign: 'left', // Căn trái
+    bottom: 130, // Cách đáy video một khoảng
+    left: 10, // Căn lề bên trái
   },
   reelDesc: {
-    position: 'absolute',
-    bottom: 20,
-    left: 10,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    padding: 5,
-    marginTop: 10,
-    marginVertical: 40,
-    marginHorizontal: 10,
+    fontSize: 16, // Kích thước chữ cho mô tả
+    color: 'white', // Màu chữ
+    textAlign: 'left', // Căn trái
+    lineHeight: 20, // Dòng cách dòng (giúp nội dung dễ đọc)
+    bottom: 130, // Cách đáy video một khoảng
+    left: 10, // Căn lề bên trái
   },
   playPauseButton: {
     position: 'absolute',
@@ -784,18 +1505,18 @@ const styles = StyleSheet.create({
   actionButton: {
     marginHorizontal: 15,
     marginVertical: -55,
-
   },
   slider: {
+    position: 'absolute',
     width: width,
     height: 40,
-    marginVertical: -35,
+    bottom: -10,
   },
   timeContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginRight: 20,
-    marginVertical: -50,
+    bottom: 40,
   },
   slidertimeText: {
     color: 'white',
@@ -832,16 +1553,17 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end', // Căn giữa Modal theo chiều dọc ở dưới cùng
     alignItems: 'center', // Căn giữa Modal theo chiều ngang
     marginVertical: 80,
+
   },
   modalContent: {
     backgroundColor: 'white',
-    width: width, // Chiều rộng Modal chiếm toàn bộ chiều rộng màn hình
-    height: height * 0.7, // Chiều cao chiếm 70% chiều cao màn hình
-    padding: 20,
+    width: width * 0.95, // Chiều rộng Modal chiếm toàn bộ chiều rộng màn hình
+    height: height * 0.6, // Chiều cao chiếm 70% chiều cao màn hình
+    padding: 10,
     borderRadius: 10,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 10,
   },
@@ -905,17 +1627,74 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 20, // Khoảng cách từ trên cùng
-    left: width * 0.92, // Khoảng cách từ bên phải
+    top: 10, // Khoảng cách từ trên cùng
+    left: width * 0.87, // Khoảng cách từ bên phải
     zIndex: 1, // Đảm bảo nút nằm trên các phần tử khác trong modal
     color: 'black', // Màu sắc của nút
+  },
+  rowContainer: {
+    flexDirection: 'row', // Sắp xếp các phần tử theo hàng ngang
+    alignItems: 'center', // Căn giữa theo chiều dọc
   },
   timeText: {
     fontSize: 12, // Kích thước chữ thời gian
     color: '#777', // Màu chữ cho thời gian (nhạt hơn)
-    marginTop: 5, // Khoảng cách giữa bình luận và thời gian
   },
-
+  replyText: {
+    fontSize: 14, // Cỡ chữ giống timeText
+    color: 'black', // Màu chữ (có thể chọn màu nhấn)
+    right: -10,
+  },
+  replyInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  replyInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 14,
+    backgroundColor: '#fff',
+  },
+  closeInputButton: {
+    marginLeft: 10,
+    padding: 5,
+    backgroundColor: '#f44336', // Màu đỏ để biểu thị đóng
+    borderRadius: 5,
+  },
+  closeButtonText: {
+    color: 'white',
+    fontSize: 14,
+  },
+  sendButton: {
+    marginLeft: 8,
+    backgroundColor: '#007BFF',
+    paddingLeft: 10,
+    paddingRight: 10,
+    paddingBottom: 5,
+    paddingTop: 5,
+    borderRadius: 8,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: 'red',
+    borderRadius: 15,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
 });
 
 export default ReelsScreen;

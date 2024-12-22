@@ -16,10 +16,10 @@ import {
   DetailProductPost,
   EditProductPostScreen,
 } from "../screens/ProductScreens";
-import { Message,MessageSummary,SettingChat, SearchMessage} from "../screens/Chat";
-import {AddGroup,GroupList,GroupMessage,GroupInfor,EditGroup,MemberGroup, AddMember, SearchMessagesTab } from "../screens/Chat/ChatGroup";
-import { Account,ChangePassword } from "../screens/Account";
-import { CreateReel } from "../screens/Reel";
+import { Message, MessageSummary, SettingChat, SearchMessage } from "../screens/Chat";
+import { AddGroup, GroupList, GroupMessage, GroupInfor, EditGroup, MemberGroup, AddMember, SearchMessagesTab } from "../screens/Chat/ChatGroup";
+import { Account, ChangePassword } from "../screens/Account";
+import { CreateReel, NotificationsReelScreen } from "../screens/Reel";
 
 const Stack = createStackNavigator();
 
@@ -70,8 +70,9 @@ function Navigation() {
         <Stack.Screen name="SettingChat" component={SettingChat} />
         <Stack.Screen name="SearchMessage" component={SearchMessage} />
 
-         {/*Reel Screen*/}
-         <Stack.Screen name="CreateReel" component={CreateReel} />
+        {/*Reel Screen*/}
+        <Stack.Screen name="CreateReel" component={CreateReel} />
+        <Stack.Screen name="NotificationsReelScreen" component={NotificationsReelScreen} />
 
         <Stack.Screen name="AddGroup" component={AddGroup} />
         <Stack.Screen name="GroupList" component={GroupList} />

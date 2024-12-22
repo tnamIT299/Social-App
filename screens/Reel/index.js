@@ -1,2 +1,3 @@
 import CreateReel from "./CreateReel";
-export { CreateReel };
+import NotificationsReelScreen from "./NotificationsReelScreen";
+export { CreateReel,NotificationsReelScreen };
