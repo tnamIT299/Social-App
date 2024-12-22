@@ -26,7 +26,7 @@ import { getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
 import Swiper from "react-native-swiper";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
+import "dayjs/locale/vi";
 import styles from "./style/stylePostDetail";
 import {
   sendReplyComment,
@@ -44,17 +44,17 @@ const PostDetailScreen = () => {
   const [likedPosts, setLikedPosts] = useState({});
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
-  const [replyTo, setReplyTo] = useState(null); // Theo dõi comment nào đang được reply
-  const [replyText, setReplyText] = useState(""); // Nội dung của reply
-  const [editingCommentId, setEditingCommentId] = useState(null); // ID of the comment being edited
-  const [editingText, setEditingText] = useState(""); // New text for the comment
+  const [replyTo, setReplyTo] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingText, setEditingText] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
   const [selectedComment, setSelectedComment] = useState(null);
   const [userId, setUserId] = useState("");
   const navigation = useNavigation();
   const route = useRoute();
-  const { postId } = route.params || {}; // Get postId from route params
+  const { postId } = route.params || {};
   useEffect(() => {
     const fetchUserId = async () => {
       const id = await getUserId();
@@ -63,7 +63,6 @@ const PostDetailScreen = () => {
     fetchUserId();
   }, []);
 
-  
   const fetchPostDetails = async () => {
     if (!postId) return;
 
@@ -411,27 +410,24 @@ const PostDetailScreen = () => {
       Alert.alert("Lỗi", "Không tìm thấy comment để xóa.");
       return;
     }
-  
-    const { cid, pid } = selectedComment; // Lấy thông tin từ comment đã chọn
-  
+
+    const { cid, pid } = selectedComment;
+
     const { success, message } = await deleteComment(cid, pid);
-  
+
     if (success) {
-      // Cập nhật giao diện sau khi xóa
       setComments((prevComments) =>
         prevComments.filter(
           (comment) => comment.cid !== cid && comment.parent_cid !== cid
         )
       );
       Alert.alert("Thành công", "Bình luận đã được xóa.");
-      setModalVisible(false); // Đóng modal sau khi xóa
-      setSelectedComment(null); // Reset comment đã chọn
+      setModalVisible(false);
+      setSelectedComment(null);
     } else {
       Alert.alert("Lỗi", message || "Không thể xóa bình luận.");
     }
   };
-  
-  
 
   // Render bình luận và reply theo dạng phân cấp
   const renderComments = (comments, depth = 0) => {
@@ -456,8 +452,8 @@ const PostDetailScreen = () => {
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => {
-                  setEditingCommentId(null); // Exit editing mode
-                  setEditingText(""); // Clear the input field
+                  setEditingCommentId(null);
+                  setEditingText("");
                 }}
               >
                 <Text style={styles.cancelButtonText}>Hủy</Text>
@@ -545,7 +541,6 @@ const PostDetailScreen = () => {
       <SafeAreaView style={styles.container}>
         {post && (
           <ScrollView style={styles.cardContainer}>
-            {/* Post Details */}
             <View style={styles.backButtonContainer}>
               <TouchableOpacity onPress={() => navigation.goBack()}>
                 <Ionicons name="arrow-back" size={30} color="black" />
@@ -574,7 +569,9 @@ const PostDetailScreen = () => {
                       style={styles.userAvatar}
                     />
                   )}
-                  <Text style={{ flex: 1, fontSize:16, fontWeight:"bold" }}>{post.User?.name}</Text>
+                  <Text style={{ flex: 1, fontSize: 16, fontWeight: "bold" }}>
+                    {post.User?.name}
+                  </Text>
                 </View>
               </View>
               <View style={styles.posttimeView}>
@@ -592,13 +589,12 @@ const PostDetailScreen = () => {
                     (() => {
                       let images = [];
                       try {
-                        // Parse pimage và kiểm tra xem có phải mảng hợp lệ không
                         images = JSON.parse(post.pimage);
                         if (!Array.isArray(images) || images.length === 0)
-                          return null; // Không hiển thị nếu không có ảnh
+                          return null;
                       } catch (e) {
                         console.error("Lỗi khi parse pimage:", e.message);
-                        return null; // Không hiển thị nếu parse lỗi
+                        return null;
                       }
 
                       return (
@@ -636,7 +632,6 @@ const PostDetailScreen = () => {
                 </>
               ) : null}
               <View style={styles.cardStats}>
-                {/* Likes, Comments, and Shares Counters */}
                 <View style={styles.statRow}>
                   <Text style={styles.statText}>{post.plike} lượt thích</Text>
                   <TouchableOpacity
@@ -656,10 +651,7 @@ const PostDetailScreen = () => {
 
                 <View style={styles.statRow}>
                   <Text style={styles.statText}>{post.pcomment} bình luận</Text>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    //onPress={handleComment}
-                  >
+                  <TouchableOpacity style={styles.actionButton}>
                     <Ionicons
                       name="chatbubble-outline"
                       size={16}
@@ -671,10 +663,7 @@ const PostDetailScreen = () => {
 
                 <View style={styles.statRow}>
                   <Text style={styles.statText}>{post.pshare} chia sẻ</Text>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    //onPress={handleShare}
-                  >
+                  <TouchableOpacity style={styles.actionButton}>
                     <Ionicons
                       name="share-social-outline"
                       size={16}
@@ -686,7 +675,7 @@ const PostDetailScreen = () => {
               </View>
             </View>
 
-            {/* Khung nhập bình luận */}
+            {/* Comment box */}
             <View style={styles.commentBox}>
               <TextInput
                 style={styles.textInput}
@@ -730,9 +719,9 @@ const PostDetailScreen = () => {
                   <TouchableOpacity
                     style={styles.optionItem}
                     onPress={() => {
-                      setEditingCommentId(selectedComment.cid); // Set comment ID for editing
-                      setEditingText(selectedComment.comment); // Set the initial text
-                      setModalVisible(false); // Close the modal
+                      setEditingCommentId(selectedComment.cid);
+                      setEditingText(selectedComment.comment);
+                      setModalVisible(false);
                     }}
                   >
                     <Ionicons
@@ -746,8 +735,8 @@ const PostDetailScreen = () => {
                   <TouchableOpacity
                     style={styles.optionItem}
                     onPress={() => {
-                      setModalVisible(false); // Close the modal
-                      handleDeleteComment(); // Delete the comment
+                      setModalVisible(false);
+                      handleDeleteComment();
                     }}
                   >
                     <Ionicons
@@ -770,7 +759,6 @@ const PostDetailScreen = () => {
                     />
                     <Text style={styles.optionText}>Huỷ</Text>
                   </TouchableOpacity>
-                  {/* Add more options as needed */}
                 </View>
               </TouchableOpacity>
             </Modal>

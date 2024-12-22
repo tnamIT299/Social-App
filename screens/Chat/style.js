@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   },
   headerIcons: {
     flexDirection: "row",
-    flex: 0.65,
+    flex: 0.7,
   },
   icon: {
     marginHorizontal: 10,
@@ -210,6 +210,13 @@ const styles = StyleSheet.create({
     color: "black",
     fontSize: 15,
     marginLeft: 10,
+  },
+  statusDot: {
+    width: 12,
+    height: 12,
+    bottom: 5,
+    borderRadius: 6,
+    marginLeft:5
   },
 });
 

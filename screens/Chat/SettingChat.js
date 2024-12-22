@@ -106,12 +106,6 @@ const SettingChatTab = ({ route, navigation }) => {
           <FontAwesome6 name="magnifying-glass" size={24} color="black" />
           <Text style={styles.optionText}>Tìm kiếm tin nhắn</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.option}>
-          <FontAwesome6 name="trash" size={24} color="black" />
-          <Text style={styles.optionTextDelete}>
-            Xoá toàn bộ cuộc hội thoại
-          </Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.option} onPress={toggleBlock}>
           <FontAwesome6
             name={isBlocked ? "user-check" : "user-slash"}

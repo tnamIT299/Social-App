@@ -56,7 +56,6 @@ const Message = ({ route }) => {
   const flatListRef = useRef(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState(null); // ID of the comment being edited
-  const [editingText, setEditingText] = useState(""); // New text for the comment
   const [modalVisible, setModalVisible] = useState(false);
   const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
   const [selectedMessage, setSelectedMessage] = useState(null);
@@ -255,7 +254,7 @@ const Message = ({ route }) => {
       );
 
       if (success) {
-        setEditingMessageId(null); 
+        setEditingMessageId(null);
         setNewMessage("");
       } else {
         Alert.alert("Lỗi", resultMessage || "Không thể chỉnh sửa tin nhắn.");
@@ -274,7 +273,7 @@ const Message = ({ route }) => {
           "Đã chặn",
           "Bạn không thể gửi tin nhắn cho người dùng này."
         );
-        return; 
+        return;
       }
 
       if (
@@ -295,8 +294,8 @@ const Message = ({ route }) => {
           return Alert.alert("Error", "Failed to send text message");
         }
 
-        setNewMessage(""); 
-        return; 
+        setNewMessage("");
+        return;
       }
 
       // Kiểm tra nếu có hình ảnh
@@ -429,6 +428,12 @@ const Message = ({ route }) => {
             <Icon name="chevron-back-outline" size={25} color="black" />
           </TouchableOpacity>
           <Image source={{ uri: avatar }} style={styles.headerAvatar} />
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: onlinestatus === "online" ? "green" : "gray" },
+            ]}
+          />
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>{name}</Text>
             {!isBlocked && (
