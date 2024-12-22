@@ -10,13 +10,17 @@ import {
   Platform,
   Alert,
   ScrollView,
+  Dimensions,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
+import { Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../../data/supabaseClient";
 import {
   sendMessageWithImage,
+  editMessage,
   deleteMessage,
 } from "../../../server/GroupMessageService";
 import { getUserId } from "../../../data/getUserData";
@@ -42,6 +46,10 @@ const GroupMessage = ({ route }) => {
   const [senderId, setSenderId] = useState("");
   const [selectedImages, setSelectedImages] = useState([]);
   const [senderNames, setSenderNames] = useState({}); // State để lưu tên người gửi theo sender_id
+  const [editingMessageId, setEditingMessageId] = useState(null); // ID of the comment being edited
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
+  const [selectedMessage, setSelectedMessage] = useState(null);
   const flatListRef = useRef(null);
 
   useEffect(() => {
@@ -52,6 +60,18 @@ const GroupMessage = ({ route }) => {
     };
     fetchUserId();
   }, []);
+
+  const handleOpenModal = (event, message) => {
+    const { pageY, pageX } = event.nativeEvent;
+    const windowWidth = Dimensions.get("window").width;
+
+    setModalPosition({
+      top: pageY - 50,
+      right: windowWidth - pageX + 20,
+    });
+    setSelectedMessage(message);
+    setModalVisible(true);
+  };
 
   const fetchMessages = async () => {
     if (!groupId) return;
@@ -81,7 +101,7 @@ const GroupMessage = ({ route }) => {
   // Hook lắng nghe realtime tin nhắn mới
   useEffect(() => {
     if (!senderId || !groupId) return;
-  
+
     const messageChannel = supabase
       .channel("realtime-group-messages")
       .on(
@@ -89,7 +109,7 @@ const GroupMessage = ({ route }) => {
         { event: "INSERT", schema: "public", table: "GroupMessage" },
         (payload) => {
           const newMessage = payload.new;
-  
+
           if (newMessage.groupid === groupId) {
             setMessages((prevMessages) => {
               const updatedMessages = [...prevMessages, newMessage].sort(
@@ -97,7 +117,7 @@ const GroupMessage = ({ route }) => {
               );
               return updatedMessages;
             });
-  
+
             flatListRef.current?.scrollToEnd({ animated: true });
           }
         }
@@ -107,7 +127,7 @@ const GroupMessage = ({ route }) => {
         { event: "DELETE", schema: "public", table: "GroupMessage" },
         (payload) => {
           const deletedMessage = payload.old;
-  
+
           if (deletedMessage.groupid === groupId) {
             setMessages((prevMessages) =>
               prevMessages.filter((message) => message.id !== deletedMessage.id)
@@ -116,12 +136,11 @@ const GroupMessage = ({ route }) => {
         }
       )
       .subscribe();
-  
+
     return () => {
       supabase.removeChannel(messageChannel);
     };
   }, [senderId, groupId]);
-  
 
   // Lấy tên người gửi (sender_name) từ bảng User khi tin nhắn được tải
   useEffect(() => {
@@ -153,7 +172,30 @@ const GroupMessage = ({ route }) => {
     const localDate = new Date(new Date().getTime() + localTimeOffset);
     return localDate.toISOString();
   };
+const handleEditMessage = async (messageId) => {
+    if (newMessage.trim() === "") {
+      Alert.alert("Lỗi", "Nội dung tin nhắn không được để trống.");
+      return;
+    }
 
+    try {
+      const { success, message: resultMessage } = await editMessage(
+        messageId,
+        newMessage,
+        fetchMessages
+      );
+
+      if (success) {
+        setEditingMessageId(null); 
+        setNewMessage("");
+      } else {
+        Alert.alert("Lỗi", resultMessage || "Không thể chỉnh sửa tin nhắn.");
+      }
+    } catch (error) {
+      console.error("Lỗi khi chỉnh sửa tin nhắn:", error);
+      Alert.alert("Lỗi", "Đã xảy ra lỗi khi chỉnh sửa tin nhắn.");
+    }
+  };
   // Hàm render tin nhắn
   const renderMessage = ({ item }) => {
     const isSender = item.sender_id === senderId;
@@ -161,9 +203,11 @@ const GroupMessage = ({ route }) => {
 
     return (
       <TouchableOpacity
-        onLongPress={() =>
-          deleteMessage(item.id, item.sender_id, userId, fetchMessages)
-        }
+        onLongPress={(event) => {
+          if (isSender) {
+            handleOpenModal(event, item);
+          }
+        }}
         delayLongPress={500}
         activeOpacity={0.7}
       >
@@ -352,6 +396,79 @@ const GroupMessage = ({ route }) => {
             flatListRef.current?.scrollToEnd({ animated: true })
           }
         />
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPressOut={() => setModalVisible(false)}
+          >
+            <View
+              style={[
+                styles.modalContent,
+                { top: modalPosition.top, right: modalPosition.right },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={() => {
+                  if (!selectedMessage.image_url) {
+                     setEditingMessageId(selectedMessage.id); // Đặt tin nhắn đang chỉnh sửa
+                     setNewMessage(selectedMessage.content); // Đặt nội dung chỉnh sửa vào ô nhập
+                     setModalVisible(false); // Đóng modal
+                  } else {
+                    Alert.alert(
+                      "Lỗi",
+                      "Không thể chỉnh sửa tin nhắn dạng hình ảnh."
+                    );
+                  }
+                }}
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={24}
+                  color="black"
+                  style={styles.iconModal}
+                />
+                <Text style={styles.optionText}>Chỉnh sửa</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={() => {
+                  if (selectedMessage) {
+                    deleteMessage(selectedMessage.id, fetchMessages);
+                    setModalVisible(false);
+                  }
+                }}
+              >
+                <Ionicons
+                  name="close-circle-outline"
+                  size={24}
+                  color="black"
+                  style={styles.iconModal}
+                />
+                <Text style={styles.optionText}>Xoá</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={() => setModalVisible(false)}
+              >
+                <Ionicons
+                  name="log-out-outline"
+                  size={24}
+                  color="black"
+                  style={styles.iconModal}
+                />
+                <Text style={styles.optionText}>Huỷ</Text>
+              </TouchableOpacity>
+              {/* Add more options as needed */}
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {selectedImages.length > 0 && (
           <View style={styles.imagePreviewContainer}>
@@ -403,7 +520,9 @@ const GroupMessage = ({ route }) => {
 
         <View style={styles.inputContainer}>
           <TextInput
-            placeholder="Enter your message..."
+            placeholder={
+              editingMessageId ? "Chỉnh sửa tin nhắn..." : "Nhập tin nhắn..."
+            }
             value={newMessage}
             onChangeText={setNewMessage}
             style={styles.input}
@@ -416,6 +535,7 @@ const GroupMessage = ({ route }) => {
                 () => launchCamera(setSelectedImages, selectedImages)
               )
             }
+            disabled={!!editingMessageId} // Không cho chọn ảnh khi đang chỉnh sửa
           >
             <Icon
               name="add-circle"
@@ -424,8 +544,20 @@ const GroupMessage = ({ route }) => {
               style={styles.iconSend}
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={sendMessage}>
-            <Icon name="send" size={30} color="blue" style={styles.iconSend} />
+
+          <TouchableOpacity
+            onPress={
+              editingMessageId
+                ? () => handleEditMessage(editingMessageId)
+                : sendMessage
+            }
+          >
+            <Icon
+              name={editingMessageId ? "checkmark-circle-outline" : "send"}
+              size={30}
+              color="blue"
+              style={styles.iconSend}
+            />
           </TouchableOpacity>
         </View>
       </SafeAreaView>

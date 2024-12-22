@@ -1,3 +1,4 @@
+import { Alert } from "react-native";
 import { supabase } from "../data/supabaseClient";
 import * as FileSystem from "expo-file-system";
 
@@ -153,6 +154,91 @@ export const editPost = async (postDetails) => {
     return false;
   }
 };
+
+// Chia sẻ bài viết
+export const handleSharePost = async (postId, userId, setPosts, setError) => {
+  try {
+    // 1. Lấy thông tin bài viết gốc và người đăng bài gốc
+    const { data: originalPost, error: fetchError } = await supabase
+      .from("Post")
+      .select(
+        `
+        * ,
+        user:uid(name, avatar) -- Lấy thông tin người đăng bài gốc
+      `
+      )
+      .eq("pid", postId)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Không thể lấy bài viết gốc: ${fetchError.message}`);
+    }
+
+    // 2. Tạo bài viết chia sẻ
+    const { error: insertError } = await supabase.from("Post").insert({
+      pid: generateUniqueId(),
+      ptitle: originalPost.ptitle,
+      pdesc: originalPost.pdesc,
+      pimage: originalPost.pimage,
+      plike: 0,
+      pcomment: 0,
+      pshare: 0,
+      uid: userId, // ID người chia sẻ
+      createdat: getLocalISOString(),
+      original_pid: originalPost.pid, // Liên kết bài viết gốc
+    });
+
+    if (insertError) {
+      throw new Error(`Không thể tạo bài viết chia sẻ: ${insertError.message}`);
+    }
+
+    // 3. Tăng số lượt chia sẻ bài viết gốc
+    const { error: updateError } = await supabase
+      .from("Post")
+      .update({ pshare: originalPost.pshare + 1 })
+      .eq("pid", postId);
+
+    if (updateError) {
+      throw new Error(
+        `Không thể cập nhật số lượt chia sẻ: ${updateError.message}`
+      );
+    }
+
+    // 4. Tải lại toàn bộ danh sách bài viết
+    const { data: updatedPosts, error: fetchUpdatedError } =
+      await supabase.from("Post").select(`
+        * ,
+        user:uid(name, avatar), 
+        original_post:original_pid( 
+          ptitle,
+          user:uid(name, avatar) 
+        )
+      `);
+
+    if (fetchUpdatedError) {
+      throw new Error(
+        `Không thể tải lại danh sách bài viết: ${fetchUpdatedError.message}`
+      );
+    }
+
+    if (!updatedPosts || updatedPosts.length === 0) {
+      throw new Error("Không tìm thấy bài viết nào sau khi chia sẻ.");
+    }
+
+    // In toàn bộ danh sách bài viết (debug)
+    console.log("Updated Posts:", updatedPosts);
+
+    // 5. Cập nhật danh sách bài viết và thông báo thành công
+    setPosts(updatedPosts);
+    Alert.alert("Thông báo", "Chia sẻ bài viết thành công!");
+
+  } catch (error) {
+    console.error("Error in handleSharePost:", error.message);
+    setError(error.message);
+    Alert.alert("Lỗi", `Chia sẻ bài viết thất bại: ${error.message}`);
+  }
+};
+
 
 // Hàm lấy tên tệp từ URI
 const fileNameFromUri = (uri) => {

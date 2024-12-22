@@ -4,6 +4,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
+  avatarContainer: {
+    position: "relative", // Container để định vị statusDot
+    marginRight: 10,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -33,7 +37,7 @@ const styles = StyleSheet.create({
   },
   headerIcons: {
     flexDirection: "row",
-    flex: 0.65,
+    flex: 0.7,
   },
   icon: {
     marginHorizontal: 10,
@@ -188,6 +192,38 @@ const styles = StyleSheet.create({
   unblockText: {
     color: "#fff",
     fontWeight: "bold",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-start",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    position: "absolute",
+    backgroundColor: "white",
+    padding: 10,
+    borderRadius: 10,
+    width: 190,
+    zIndex: 999,
+  },
+  optionItem: {
+    flexDirection: "row",
+    paddingVertical: 5,
+  },
+  optionText: {
+    color: "black",
+    fontSize: 15,
+    marginLeft: 10,
+  },
+  statusDot: {
+    position: "absolute",
+    width: 15,
+    height: 15,
+    borderRadius: 7,
+    bottom: 2, 
+    right: 2,
+    borderWidth: 2, 
+    borderColor: "#fff",
   },
 });
 

@@ -10,6 +10,8 @@ import {
   Platform,
   Alert,
   ScrollView,
+  Dimensions,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
@@ -17,6 +19,7 @@ import { useNavigation } from "@react-navigation/native";
 import {
   sendMessageWithImage,
   deleteMessage,
+  editMessage,
 } from "../../server/MessageService";
 import {
   pickImage,
@@ -34,6 +37,7 @@ import "dayjs/locale/vi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { unblockUser } from "./BlockFn";
 import { getLocalISOString } from "../../server/MessageService";
+import { Ionicons, FontAwesome6, MaterialIcons } from "@expo/vector-icons";
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
@@ -51,6 +55,10 @@ const Message = ({ route }) => {
   const [themeColor, setThemeColor] = useState("#a0e7ff");
   const flatListRef = useRef(null);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null); // ID of the comment being edited
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
+  const [selectedMessage, setSelectedMessage] = useState(null);
 
   useEffect(() => {
     const checkBlockStatus = async () => {
@@ -192,6 +200,18 @@ const Message = ({ route }) => {
     loadThemeColor();
   }, [paramThemeColor]);
 
+  const handleOpenModal = (event, message) => {
+    const { pageY, pageX } = event.nativeEvent;
+    const windowWidth = Dimensions.get("window").width;
+
+    setModalPosition({
+      top: pageY - 50,
+      right: windowWidth - pageX + 20,
+    });
+    setSelectedMessage(message);
+    setModalVisible(true);
+  };
+
   const handleUnblock = async () => {
     const success = await unblockUser(senderId, receiverId);
     if (success) {
@@ -220,20 +240,42 @@ const Message = ({ route }) => {
       return false;
     }
   };
+  const handleEditMessage = async (messageId) => {
+    if (newMessage.trim() === "") {
+      Alert.alert("Lỗi", "Nội dung tin nhắn không được để trống.");
+      return;
+    }
+
+    try {
+      const { success, message: resultMessage } = await editMessage(
+        messageId,
+        newMessage,
+        fetchMessages
+      );
+
+      if (success) {
+        setEditingMessageId(null);
+        setNewMessage("");
+      } else {
+        Alert.alert("Lỗi", resultMessage || "Không thể chỉnh sửa tin nhắn.");
+      }
+    } catch (error) {
+      console.error("Lỗi khi chỉnh sửa tin nhắn:", error);
+      Alert.alert("Lỗi", "Đã xảy ra lỗi khi chỉnh sửa tin nhắn.");
+    }
+  };
 
   const sendMessage = async () => {
     try {
-      // Kiểm tra quyền gửi tin nhắn
       const isAllowed = await canSend(senderId, receiverId);
       if (!isAllowed) {
         Alert.alert(
           "Đã chặn",
           "Bạn không thể gửi tin nhắn cho người dùng này."
         );
-        return; // Dừng hàm nếu không được phép gửi
+        return;
       }
 
-      // Gửi tin nhắn văn bản
       if (
         newMessage.trim() !== "" &&
         (!selectedImages || selectedImages.length === 0)
@@ -255,6 +297,39 @@ const Message = ({ route }) => {
         setNewMessage("");
         return;
       }
+
+      // Kiểm tra nếu có hình ảnh
+      if (selectedImages && selectedImages.length > 0) {
+        const messageDetails = {
+          sender_id: senderId,
+          receiver_id: receiverId,
+          image_url: selectedImages,
+          created_at: getLocalISOString(),
+        };
+
+        const success = await sendMessageWithImage(messageDetails);
+        if (!success) {
+          return Alert.alert("Error", "Error sending message with image");
+        }
+      }
+
+      if (newMessage.trim() !== "") {
+        const { error } = await supabase.from("Message").insert([
+          {
+            sender_id: senderId,
+            receiver_id: receiverId,
+            content: newMessage,
+            created_at: getLocalISOString(),
+          },
+        ]);
+
+        if (error) {
+          console.error("Error sending text message:", error);
+          return Alert.alert("Error", "Failed to send text message");
+        }
+
+        setNewMessage(""); // Reset nội dung tin nhắn sau khi gửi thành công
+      }
     } catch (error) {
       console.error("Unexpected error:", error);
       Alert.alert("Error", `Unexpected error: ${error.message}`);
@@ -267,9 +342,11 @@ const Message = ({ route }) => {
 
     return (
       <TouchableOpacity
-        onLongPress={() =>
-          deleteMessage(item.id, item.sender_id, userId, fetchMessages)
-        }
+        onLongPress={(event) => {
+          if (isSender) {
+            handleOpenModal(event, item);
+          }
+        }}
         delayLongPress={500}
         activeOpacity={0.7}
       >
@@ -350,15 +427,29 @@ const Message = ({ route }) => {
           >
             <Icon name="chevron-back-outline" size={25} color="black" />
           </TouchableOpacity>
-          <Image source={{ uri: avatar }} style={styles.headerAvatar} />
+
+          <View style={styles.avatarContainer}>
+            <Image source={{ uri: avatar }} style={styles.headerAvatar} />
+            {!isBlocked && (
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor:
+                      onlinestatus === "online" ? "green" : "gray",
+                  },
+                ]}
+              />
+            )}
+          </View>
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>{name}</Text>
             {!isBlocked && (
               <Text style={styles.lastActiveText}>
-              {onlinestatus === "online"
-                ? "Đang hoạt động"
-                : `Hoạt động ${dayjs(lastOnline).fromNow()}`}
-            </Text>
+                {onlinestatus === "online"
+                  ? "Đang hoạt động"
+                  : `Hoạt động ${dayjs(lastOnline).fromNow()}`}
+              </Text>
             )}
           </View>
           <View style={styles.headerIcons}>
@@ -409,6 +500,80 @@ const Message = ({ route }) => {
           }
           // Alternatively, you could use onLayout or onScroll to trigger scroll if needed
         />
+
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPressOut={() => setModalVisible(false)}
+          >
+            <View
+              style={[
+                styles.modalContent,
+                { top: modalPosition.top, right: modalPosition.right },
+              ]}
+            >
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={() => {
+                  if (!selectedMessage.image_url) {
+                    setEditingMessageId(selectedMessage.id); // Đặt tin nhắn đang chỉnh sửa
+                    setNewMessage(selectedMessage.content); // Đặt nội dung chỉnh sửa vào ô nhập
+                    setModalVisible(false); // Đóng modal
+                  } else {
+                    Alert.alert(
+                      "Lỗi",
+                      "Không thể chỉnh sửa tin nhắn dạng hình ảnh."
+                    );
+                  }
+                }}
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={24}
+                  color="black"
+                  style={styles.iconModal}
+                />
+                <Text style={styles.optionText}>Chỉnh sửa</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={() => {
+                  if (selectedMessage) {
+                    deleteMessage(selectedMessage.id, fetchMessages);
+                    setModalVisible(false);
+                  }
+                }}
+              >
+                <Ionicons
+                  name="close-circle-outline"
+                  size={24}
+                  color="black"
+                  style={styles.iconModal}
+                />
+                <Text style={styles.optionText}>Xoá</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.optionItem}
+                onPress={() => setModalVisible(false)}
+              >
+                <Ionicons
+                  name="log-out-outline"
+                  size={24}
+                  color="black"
+                  style={styles.iconModal}
+                />
+                <Text style={styles.optionText}>Huỷ</Text>
+              </TouchableOpacity>
+              {/* Add more options as needed */}
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {selectedImages.length > 0 && (
           <View style={styles.imagePreviewContainer}>
@@ -461,7 +626,9 @@ const Message = ({ route }) => {
         {!isBlocked && (
           <View style={styles.inputContainer}>
             <TextInput
-              placeholder="Enter your message..."
+              placeholder={
+                editingMessageId ? "Chỉnh sửa tin nhắn..." : "Nhập tin nhắn..."
+              }
               value={newMessage}
               onChangeText={setNewMessage}
               style={styles.input}
@@ -474,6 +641,7 @@ const Message = ({ route }) => {
                   () => launchCamera(setSelectedImages, selectedImages)
                 )
               }
+              disabled={!!editingMessageId} // Không cho chọn ảnh khi đang chỉnh sửa
             >
               <Icon
                 name="add-circle"
@@ -483,9 +651,15 @@ const Message = ({ route }) => {
               />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={sendMessage}>
+            <TouchableOpacity
+              onPress={
+                editingMessageId
+                  ? () => handleEditMessage(editingMessageId)
+                  : sendMessage
+              }
+            >
               <Icon
-                name="send"
+                name={editingMessageId ? "checkmark-circle-outline" : "send"}
                 size={30}
                 color="blue"
                 style={styles.iconSend}

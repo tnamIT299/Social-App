@@ -1,15 +1,27 @@
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
 import { sendComment } from "../../server/CommentService";
+import { notifyLikePost } from "../../server/notificationService";
 
 // Lấy danh sách bài viết với quyền công khai và thông tin người dùng liên quan
 export const fetchPosts = async (setPosts, setLoading, setError) => {
   setLoading(true);
   try {
-    // Lấy danh sách bài viết với quyền truy cập là "cộng đồng"
+    // Lấy danh sách bài viết với quyền truy cập là "cộng đồng", bao gồm thông tin người dùng và bài viết gốc
     const { data: postsData, error: postsError } = await supabase
       .from("Post")
-      .select("*")
+      .select(
+        `
+        *,
+        user:uid(uid,name, avatar),
+        original_post:original_pid(
+          ptitle,
+          pdesc,
+          pimage,
+          user:uid(uid, name, avatar)
+        )
+      `
+      )
       .eq("permission", "cộng đồng");
 
     if (postsError) throw new Error(postsError.message);
@@ -20,50 +32,40 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
       return;
     }
 
+    // Lấy ID người dùng hiện tại
     const userId = await getUserId();
 
-    // Lấy danh sách người dùng, lượt thích và bình luận cho tất cả bài viết
+    // Xử lý các bài viết, thêm thông tin lượt thích và bình luận
     const updatedPosts = await Promise.all(
       postsData.map(async (post) => {
-        const userPromise = supabase
-          .from("User")
-          .select("uid, name, avatar")
-          .eq("uid", post.uid)
-          .single();
-
-        const likePromise = supabase
+        // Lấy trạng thái like cho bài viết
+        const { data: likeData, error: likeError } = await supabase
           .from("Like")
           .select("status")
           .eq("post_id", post.pid)
           .eq("user_id", userId)
           .maybeSingle();
 
-        const commentsPromise = supabase
+        if (likeError) throw new Error(likeError.message);
+
+        const likedByUser = likeData ? likeData.status : false;
+
+        // Lấy danh sách bình luận cho bài viết
+        const { data: commentsData, error: commentsError } = await supabase
           .from("Comment")
           .select("*, User(name, avatar)") // Join để lấy thông tin người dùng
           .eq("pid", post.pid);
 
-        const [userData, likeData, commentsData] = await Promise.all([
-          userPromise,
-          likePromise,
-          commentsPromise,
-        ]);
-
-        // Xử lý lỗi từ các yêu cầu
-        if (userData.error) throw new Error(userData.error.message);
-        if (likeData.error) throw new Error(likeData.error.message);
-        if (commentsData.error) throw new Error(commentsData.error.message);
-
-        const likedByUser = likeData.data ? likeData.data.status : false;
+        if (commentsError) throw new Error(commentsError.message);
 
         // Sắp xếp bình luận theo thứ tự thời gian giảm dần
-        const sortedComments = (commentsData.data || []).sort(
+        const sortedComments = (commentsData || []).sort(
           (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
         );
 
+        // Trả về bài viết đã được cập nhật
         return {
           ...post,
-          user: userData.data,
           likedByUser,
           comments: sortedComments,
         };
@@ -84,13 +86,29 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
   }
 };
 
-export const fetchPostsUser = async (userId ,setPosts, setLoading, setError) => {
+export const fetchPostsUser = async (
+  userId,
+  setPosts,
+  setLoading,
+  setError
+) => {
   setLoading(true);
   try {
-    // Lấy danh sách bài viết với quyền truy cập là "cộng đồng"
+    // Lấy danh sách bài viết do người dùng đăng hoặc chia sẻ
     const { data: postsData, error: postsError } = await supabase
       .from("Post")
-      .select("*")
+      .select(
+        `
+        * ,
+        user:uid(uid, name, avatar), 
+        original_post:original_pid( 
+          ptitle,
+          pdesc,
+          pimage,
+          user:uid(uid, name, avatar)
+        )
+      `
+      )
       .eq("uid", userId);
 
     if (postsError) throw new Error(postsError.message);
@@ -101,48 +119,37 @@ export const fetchPostsUser = async (userId ,setPosts, setLoading, setError) => 
       return;
     }
 
-    // Lấy danh sách người dùng, lượt thích và bình luận cho tất cả bài viết
+    // Xử lý từng bài viết
     const updatedPosts = await Promise.all(
       postsData.map(async (post) => {
-        const userPromise = supabase
-          .from("User")
-          .select("uid, name, avatar")
-          .eq("uid", post.uid)
-          .single();
-
-        const likePromise = supabase
+        // Lấy trạng thái like cho bài viết
+        const { data: likeData, error: likeError } = await supabase
           .from("Like")
           .select("status")
           .eq("post_id", post.pid)
           .eq("user_id", userId)
           .maybeSingle();
 
-        const commentsPromise = supabase
+        if (likeError) throw new Error(likeError.message);
+
+        const likedByUser = likeData ? likeData.status : false;
+
+        // Lấy danh sách bình luận cho bài viết
+        const { data: commentsData, error: commentsError } = await supabase
           .from("Comment")
           .select("*, User(name, avatar)") // Join để lấy thông tin người dùng
           .eq("pid", post.pid);
 
-        const [userData, likeData, commentsData] = await Promise.all([
-          userPromise,
-          likePromise,
-          commentsPromise,
-        ]);
-
-        // Xử lý lỗi từ các yêu cầu
-        if (userData.error) throw new Error(userData.error.message);
-        if (likeData.error) throw new Error(likeData.error.message);
-        if (commentsData.error) throw new Error(commentsData.error.message);
-
-        const likedByUser = likeData.data ? likeData.data.status : false;
+        if (commentsError) throw new Error(commentsError.message);
 
         // Sắp xếp bình luận theo thứ tự thời gian giảm dần
-        const sortedComments = (commentsData.data || []).sort(
+        const sortedComments = (commentsData || []).sort(
           (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
         );
 
+        // Kết hợp dữ liệu bài viết
         return {
           ...post,
-          user: userData.data,
           likedByUser,
           comments: sortedComments,
         };
@@ -154,6 +161,7 @@ export const fetchPostsUser = async (userId ,setPosts, setLoading, setError) => 
       (a, b) => new Date(b.createdat) - new Date(a.createdat)
     );
 
+    // Cập nhật danh sách bài viết
     setPosts(sortedPosts);
   } catch (error) {
     setError(error.message);
@@ -200,6 +208,7 @@ export const handleLike = async (
 
     // Cập nhật số lượt thích trong cơ sở dữ liệu
     await updateLikeCount(postId, !isLiked, userId);
+    notifyLikePost(userId, postId);
   } catch (error) {
     console.error("Lỗi khi xử lý thích bài viết:", error.message);
     setError(error.message); // Đặt lỗi nếu có
@@ -433,7 +442,6 @@ export const handleSendComment = async (
     return null; // Trả về null nếu có lỗi xảy ra
   }
 };
-
 // Tăng số lượng bình luận
 const incrementCommentCount = async (postId) => {
   try {
