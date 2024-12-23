@@ -11,13 +11,15 @@ const FriendRequest = ({
   requestId,
   fetchFriendRequests,
   fetchFriendList,
+  setRequestCount,
 }) => {
   const onAccept = async () => {
     try {
       await handleAcceptFriendRequest(
         requestId,
         fetchFriendRequests,
-        fetchFriendList
+        fetchFriendList,
+        setRequestCount
       );
     } catch (error) {
       console.error("Error accepting friend request:", error);
@@ -26,7 +28,11 @@ const FriendRequest = ({
 
   const onDelete = async () => {
     try {
-      await handleDeleteFriendRequest(requestId, fetchFriendRequests);
+      await handleDeleteFriendRequest(
+        requestId,
+        fetchFriendRequests,
+        setRequestCount
+      );
     } catch (error) {
       console.error("Error deleting friend request:", error);
     }
