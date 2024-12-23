@@ -136,6 +136,10 @@ const AddProductScreenTab = () => {
       Alert.alert("Error", "User ID is not available.");
       return;
     }
+    if(postTitle === "" || postProductPrice === "" || postProductDesc === "" || productCategory === "" || selectedOption === null || selectedImages.length === 0){
+      Alert.alert("Thông báo", "Vui lòng điền đầy đủ thông tin.");
+      return;
+    }
 
     const productPostDetails = {
       title: postTitle,

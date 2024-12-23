@@ -28,6 +28,7 @@ const AddGroupTab = () => {
   const [groupName, setGroupName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedImages, setSelectedImages] = useState([]);
+  const isButtonVisible = groupName.trim() !== "";
 
   const pickImage = async () => {
     const options = [
@@ -159,13 +160,14 @@ const AddGroupTab = () => {
           numberOfLines={4}
         />
 
-        {/* Nút Tạo */}
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={handleCreateGroup}
-        >
-          <Text style={styles.createButtonText}>Tạo</Text>
-        </TouchableOpacity>
+        {isButtonVisible && (
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={handleCreateGroup}
+          >
+            <Text style={styles.createButtonText}>Tạo</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
