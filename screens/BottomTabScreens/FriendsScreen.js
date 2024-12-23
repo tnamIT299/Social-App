@@ -17,9 +17,10 @@ import {
   SentInvitationItem,
 } from "../FriendScreens";
 
-const FriendsScreen = ({route}) => {
+const FriendsScreen = ({ route }) => {
   const [activeSection, setActiveSection] = useState("requests"); // Trạng thái mặc định là 'requests'
   const [requests, setRequests] = useState([]);
+  const [requestCount, setRequestCount] = useState(0); // Đếm số lượng lời mời kết bạn
   const [suggestions, setSuggestions] = useState([]);
   const [friendList, setFriendList] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
@@ -73,6 +74,7 @@ const FriendsScreen = ({route}) => {
           name: req.requester.name,
         }))
       );
+      setRequestCount(data.length); // Cập nhật số lượng lời mời kết bạn
     }
   };
 
@@ -263,6 +265,11 @@ const FriendsScreen = ({route}) => {
             onPress={() => setActiveSection("requests")}
           >
             <Text style={styles.buttonText}>Lời mời kết bạn</Text>
+            {requestCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationText}>{requestCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -291,6 +298,7 @@ const FriendsScreen = ({route}) => {
               requestId={request.id}
               fetchFriendRequests={fetchFriendRequests}
               fetchFriendList={fetchFriendList}
+              setRequestCount={setRequestCount}
             />
           ))}
         {activeSection === "suggestions" &&
@@ -371,6 +379,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     elevation: 5, // Shadow for Android
+  },
+  notificationBadge: {
+    position: "absolute",
+    right: -5,
+    top: -5,
+    backgroundColor: "red",
+    borderRadius: 15,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  notificationText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "bold",
   },
 });
 

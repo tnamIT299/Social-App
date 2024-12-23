@@ -138,32 +138,55 @@ export const handleUndoAddFriend = async (
 export const handleAcceptFriendRequest = async (
   requestId,
   fetchFriendRequests,
-  fetchFriendList
+  fetchFriendList,
+  setRequestCount
 ) => {
   try {
-    await supabase
+    const { error } = await supabase
       .from("Friendship")
       .update({ status: "accepted" })
       .eq("id", requestId);
 
+    if (error) {
+      console.error("Lỗi khi chấp nhận lời mời kết bạn:", error);
+      return;
+    }
+
+    // Cập nhật danh sách lời mời và danh sách bạn bè
     fetchFriendRequests();
     fetchFriendList();
+
+    // Giảm số lượng lời mời kết bạn
+    setRequestCount((prevCount) => (prevCount > 0 ? prevCount - 1 : 0));
   } catch (error) {
-    console.error("Lỗi khi chấp nhận lời mời kết bạn:", error);
+    console.error("Lỗi xử lý khi chấp nhận lời mời kết bạn:", error);
   }
 };
 
-// Xóa lời mời kết bạn
+// Xóa lời mời kết bạn (từ chối lời mời)
 export const handleDeleteFriendRequest = async (
   requestId,
-  fetchFriendRequests
+  fetchFriendRequests,
+  setRequestCount
 ) => {
   try {
-    await supabase.from("Friendship").delete().eq("id", requestId);
+    const { error } = await supabase
+      .from("Friendship")
+      .delete()
+      .eq("id", requestId);
 
+    if (error) {
+      console.error("Lỗi khi xóa lời mời kết bạn:", error);
+      return;
+    }
+
+    // Cập nhật danh sách lời mời
     fetchFriendRequests();
+
+    // Giảm số lượng lời mời kết bạn
+    setRequestCount((prevCount) => (prevCount > 0 ? prevCount - 1 : 0));
   } catch (error) {
-    console.error("Lỗi khi xóa lời mời kết bạn:", error);
+    console.error("Lỗi xử lý khi xóa lời mời kết bạn:", error);
   }
 };
 

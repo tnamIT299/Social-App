@@ -1,4 +1,5 @@
 import { Alert } from "react-native";
+import { notifyFriendPost, notifySharePost } from "./notificationService";
 import { supabase } from "../data/supabaseClient";
 import * as FileSystem from "expo-file-system";
 
@@ -56,7 +57,7 @@ export const createPost = async (postDetails) => {
       ptitle: title || "",
       pdesc: desc || "",
       pimage: JSON.stringify(imageUrls), // Lưu các URL dưới dạng chuỗi JSON
-      pvideo: "",
+      //pvideo: "",
       plike: 0,
       pcomment: 0,
       pshare: 0,
@@ -67,9 +68,13 @@ export const createPost = async (postDetails) => {
 
     console.log("Đang thêm bài viết vào cơ sở dữ liệu:", post);
 
+    // Chèn bài viết vào cơ sở dữ liệu
     const { data, error } = await supabase.from("Post").insert([post]);
 
     if (error) throw error;
+
+    // Gọi hàm gửi thông báo sau khi bài viết được thêm thành công
+    await notifyFriendPost(userId, post.pid);
 
     return true;
   } catch (error) {
@@ -232,13 +237,23 @@ export const handleSharePost = async (postId, userId, setPosts, setError) => {
     setPosts(updatedPosts);
     Alert.alert("Thông báo", "Chia sẻ bài viết thành công!");
 
+    // Cập nhật ID của bài viết chia sẻ trong trường hợp này
+    const { data: newPost } = await supabase
+      .from("Post")
+      .select("pid")
+      .eq("uid", userId)
+      .order("createdat", { ascending: false })
+      .limit(1)
+      .single();
+
+    // Gọi notifySharePost với ID bài viết mới
+    await notifySharePost(userId, newPost.pid);
   } catch (error) {
     console.error("Error in handleSharePost:", error.message);
     setError(error.message);
     Alert.alert("Lỗi", `Chia sẻ bài viết thất bại: ${error.message}`);
   }
 };
-
 
 // Hàm lấy tên tệp từ URI
 const fileNameFromUri = (uri) => {
