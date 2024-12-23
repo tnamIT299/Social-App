@@ -18,10 +18,11 @@ const PostOptions = ({
 
   return (
     <View>
-      {/* Nút ellipsis icon */}
-      <TouchableOpacity onPress={openOptions}>
-        <FontAwesome6 style={styles.ellipsis} name="ellipsis" size={20} />
-      </TouchableOpacity>
+      {isOwner && (
+        <TouchableOpacity onPress={openOptions}>
+          <FontAwesome6 style={styles.ellipsis} name="ellipsis" size={20} />
+        </TouchableOpacity>
+      )}
 
       {/* Modal hiển thị các tùy chọn */}
       <Modal

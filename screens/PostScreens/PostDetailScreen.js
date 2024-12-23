@@ -10,6 +10,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,9 +26,13 @@ import { getUserId, getUserName, getUserAvatar } from "../../data/getUserData";
 import Swiper from "react-native-swiper";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import "dayjs/locale/vi"; // Import ngôn ngữ tiếng Việt
-
-const { width: screenWidth } = Dimensions.get("window");
+import "dayjs/locale/vi";
+import styles from "./style/stylePostDetail";
+import {
+  sendReplyComment,
+  editComment,
+  deleteComment,
+} from "../../server/CommentService";
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
@@ -39,9 +44,24 @@ const PostDetailScreen = () => {
   const [likedPosts, setLikedPosts] = useState({});
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
+  const [replyTo, setReplyTo] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingText, setEditingText] = useState("");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
+  const [selectedComment, setSelectedComment] = useState(null);
+  const [userId, setUserId] = useState("");
   const navigation = useNavigation();
   const route = useRoute();
-  const { postId } = route.params || {}; // Get postId from route params
+  const { postId } = route.params || {};
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const id = await getUserId();
+      setUserId(id);
+    };
+    fetchUserId();
+  }, []);
 
   const fetchPostDetails = async () => {
     if (!postId) return;
@@ -50,67 +70,94 @@ const PostDetailScreen = () => {
       // Lấy thông tin người dùng hiện tại
       const { data: userData, error: userError } =
         await supabase.auth.getUser();
-      if (userError) throw userError;
+      if (userError)
+        throw new Error("Failed to fetch user data: " + userError.message);
 
       const user = userData.user;
-      if (user) {
-        // Fetch post details along with user data
-        const { data: postData, error: postError } = await supabase
-          .from("Post")
-          .select("*, User(name, avatar)") // Join the User table to get user data
-          .eq("pid", postId)
-          .single();
 
-        if (postError) {
-          console.error("Error fetching post:", postError);
-          throw postError;
-        }
-
-        // Fetch post's comments with user data
-        const { data: commentsData, error: commentsError } = await supabase
-          .from("Comment")
-          .select("*, User(name, avatar)") // Join the User table to get user data for comments
-          .eq("pid", postId);
-
-        if (commentsError) {
-          console.error("Error fetching comments:", commentsError);
-          throw commentsError;
-        }
-
-        // Fetch liked status
-        const { data: likeData, error: likeError } = await supabase
-          .from("Like")
-          .select("status")
-          .eq("post_id", postId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (likeError) throw likeError;
-
-        // Check if likeData is null or undefined
-        const likedByUser = likeData ? likeData.status : false; // Default to false if no like data
-
-        // Sort comments by timestamp in descending order
-        const sortedComments = commentsData.sort(
-          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-        );
-        setComments(sortedComments);
-
-        setPost({
-          ...postData,
-          likedByUser, // Include likedByUser status
-        });
-
-        // Lấy dữ liệu người dùng
-        const name = await getUserName();
-        const avatar = await getUserAvatar();
-        setUserName(name);
-        setUserAvatar(avatar);
+      if (!user) {
+        console.error("No user found.");
+        return;
       }
+
+      // Lấy thông tin bài viết kèm thông tin người đăng
+      const { data: postData, error: postError } = await supabase
+        .from("Post")
+        .select("*, User(name, avatar)") // Join bảng User để lấy thông tin người đăng bài
+        .eq("pid", postId)
+        .single();
+
+      if (postError)
+        throw new Error("Failed to fetch post details: " + postError.message);
+
+      // Lấy thông tin bình luận kèm thông tin người bình luận
+      const { data: commentsData, error: commentsError } = await supabase
+        .from("Comment")
+        .select("*, User(name, avatar)") // Join bảng User để lấy thông tin người bình luận
+        .eq("pid", postId);
+
+      if (commentsError)
+        throw new Error("Failed to fetch comments: " + commentsError.message);
+
+      // Lấy trạng thái like của người dùng hiện tại đối với bài viết
+      const { data: likeData, error: likeError } = await supabase
+        .from("Like")
+        .select("status")
+        .eq("post_id", postId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (likeError)
+        throw new Error("Failed to fetch like status: " + likeError.message);
+
+      const likedByUser = likeData ? likeData.status : false; // Nếu không có dữ liệu like, mặc định là false
+
+      // Sắp xếp bình luận theo thời gian
+      const sortedComments = commentsData.sort(
+        (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+      );
+
+      // Chuyển đổi danh sách bình luận thành dạng cây phân cấp
+
+      const commentTree = buildCommentTree(sortedComments);
+
+      // Lấy tên và avatar người dùng hiện tại
+      const name = await getUserName();
+      const avatar = await getUserAvatar();
+
+      // Cập nhật state
+      setPost({
+        ...postData,
+        likedByUser,
+      });
+      setComments(commentTree);
+      setUserName(name);
+      setUserAvatar(avatar);
     } catch (error) {
-      console.error("Error fetching post details:", error);
-    } finally {
+      console.error("Error in fetchPostDetails:", error.message);
     }
+  };
+  const buildCommentTree = (comments) => {
+    const commentMap = {};
+    const roots = [];
+
+    comments.forEach((comment) => {
+      comment.replies = []; // Khởi tạo danh sách replies
+      commentMap[comment.cid] = comment;
+
+      if (!comment.parent_cid) {
+        // Nếu là comment gốc
+        roots.push(comment);
+      } else {
+        // Nếu là reply, thêm vào replies của comment cha
+        const parent = commentMap[comment.parent_cid];
+        if (parent) {
+          parent.replies.push(comment);
+        }
+      }
+    });
+
+    return roots;
   };
 
   const handleLike = async (postId, isLiked, likeCount) => {
@@ -227,8 +274,263 @@ const PostDetailScreen = () => {
   useFocusEffect(
     useCallback(() => {
       fetchPostDetails();
+      fetchComments(postId);
     }, [postId])
   );
+
+  const fetchComments = async (postId) => {
+    try {
+      const { data: fetchedComments, error } = await supabase
+        .from("Comment")
+        .select("*, User(name, avatar)")
+        .eq("pid", postId);
+
+      if (error) throw error;
+
+      const organizedComments = organizeComments(fetchedComments || []);
+      setComments(organizedComments);
+    } catch (err) {
+      console.error("Error fetching comments:", err);
+    }
+  };
+
+  // Tổ chức dữ liệu theo dạng phân cấp
+  const organizeComments = (comments) => {
+    const commentMap = {};
+    const roots = [];
+
+    // Tạo một map để lưu các comment dựa trên `cid`
+    comments.forEach((comment) => {
+      comment.replies = []; // Khởi tạo danh sách replies
+      commentMap[comment.cid] = comment;
+
+      // Nếu là comment gốc (không có parent_cid)
+      if (!comment.parent_cid) {
+        roots.push(comment);
+      } else {
+        // Nếu có parent_cid, thêm vào replies của comment cha
+        const parent = commentMap[comment.parent_cid];
+        if (parent) {
+          parent.replies.push(comment);
+        }
+      }
+    });
+
+    return roots;
+  };
+
+  const handleReply = (comment) => {
+    setReplyTo(comment.cid); // Gán ID của comment cha
+    setReplyText(`@${comment.User?.name} `); // Gợi ý tên người dùng
+  };
+
+  const handleReplySubmit = async () => {
+    if (!replyText || !replyTo) {
+      Alert.alert("Lỗi", "Vui lòng nhập nội dung và chọn comment cha.");
+      return;
+    }
+
+    try {
+      const userId = await getUserId();
+
+      const replyDetails = {
+        replyComment: replyText.trim(),
+        userId: userId,
+        postId: postId,
+        parentCid: replyTo,
+      };
+
+      const response = await sendReplyComment(replyDetails);
+
+      if (response.success) {
+        // Fetch lại comment từ database để cập nhật đầy đủ
+        await fetchPostDetails();
+
+        // Reset trạng thái
+        setReplyText("");
+        setReplyTo(null);
+      } else {
+        Alert.alert("Lỗi", "Không thể gửi reply. Vui lòng thử lại.");
+      }
+    } catch (error) {
+      console.error("Error in handleReplySubmit:", error.message);
+      Alert.alert("Lỗi", "Đã xảy ra lỗi khi gửi reply.");
+    }
+  };
+  const handleOpenModal = (event, comment) => {
+    const { pageY, pageX } = event.nativeEvent;
+    const windowWidth = Dimensions.get("window").width;
+
+    setModalPosition({
+      top: pageY - 80,
+      right: windowWidth - pageX + 10,
+    });
+    setSelectedComment(comment);
+    setModalVisible(true);
+  };
+
+  const handleEditComment = async () => {
+    if (editingText.trim() === "") {
+      Alert.alert("Error", "Comment text cannot be empty.");
+      return;
+    }
+
+    try {
+      // Call the editComment function to update the comment in the database
+      const { success, message } = await editComment(
+        editingCommentId,
+        editingText,
+        userId
+      );
+
+      if (success) {
+        // Update the local comments state
+        setComments((prevComments) =>
+          prevComments.map((comment) =>
+            comment.cid === editingCommentId
+              ? { ...comment, comment: editingText }
+              : comment
+          )
+        );
+        // Reset the editing state
+        setEditingCommentId(null);
+        setEditingText("");
+        setModalVisible(false);
+      } else {
+        Alert.alert("Error", message || "Failed to edit the comment.");
+      }
+    } catch (error) {
+      console.error("Error editing comment:", error);
+      Alert.alert("Error", "An error occurred while editing the comment.");
+    }
+  };
+
+  const handleDeleteComment = async () => {
+    if (!selectedComment) {
+      Alert.alert("Lỗi", "Không tìm thấy comment để xóa.");
+      return;
+    }
+
+    const { cid, pid } = selectedComment;
+
+    const { success, message } = await deleteComment(cid, pid);
+
+    if (success) {
+      setComments((prevComments) =>
+        prevComments.filter(
+          (comment) => comment.cid !== cid && comment.parent_cid !== cid
+        )
+      );
+      Alert.alert("Thành công", "Bình luận đã được xóa.");
+      setModalVisible(false);
+      setSelectedComment(null);
+    } else {
+      Alert.alert("Lỗi", message || "Không thể xóa bình luận.");
+    }
+  };
+
+  // Render bình luận và reply theo dạng phân cấp
+  const renderComments = (comments, depth = 0) => {
+    return comments.map((comment) => (
+      <View key={comment.cid} style={{ marginLeft: depth * 20 }}>
+        {/* Comment chính */}
+        {editingCommentId === comment.cid ? (
+          <View style={styles.editingCommentCard}>
+            <TextInput
+              style={styles.editingInput}
+              value={editingText}
+              onChangeText={setEditingText}
+              placeholder="Sửa bình luận..."
+            />
+            <View style={styles.editingActions}>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleEditComment}
+              >
+                <Text style={styles.saveButtonText}>Lưu</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setEditingCommentId(null);
+                  setEditingText("");
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.commentCard}>
+            <View style={{ flexDirection: "row" }}>
+              {comment.User?.avatar ? (
+                <Image
+                  source={{ uri: comment.User.avatar }}
+                  style={styles.userAvatar}
+                />
+              ) : (
+                <Image
+                  source={{ uri: "https://via.placeholder.com/150" }}
+                  style={styles.userAvatar}
+                />
+              )}
+              <TouchableOpacity
+                style={styles.contentContainer}
+                onLongPress={(event) => {
+                  if (comment.uid === userId) {
+                    handleOpenModal(event, comment);
+                  }
+                }}
+                delayLongPress={500}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.userName}>{comment.User?.name}</Text>
+                <Text style={styles.commentText}>{comment.comment}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.commentActions}>
+              <Text style={styles.commentTime}>
+                {dayjs(comment.timestamp).fromNow()}
+              </Text>
+              <TouchableOpacity>
+                <Text style={styles.actionText2}>Thích</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flexDirection: "row", marginLeft: 3 }}
+                onPress={() => handleReply(comment)}
+              >
+                <Ionicons
+                  name="return-down-forward-outline"
+                  size={16}
+                  color="black"
+                />
+                <Text style={styles.actionText2}>Trả lời</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Render reply input nếu đang reply comment này */}
+        {replyTo === comment.cid && (
+          <View style={styles.replyInputContainer}>
+            <TextInput
+              style={styles.replyInput}
+              placeholder="Nhập bình luận..."
+              value={replyText}
+              onChangeText={setReplyText}
+            />
+            <TouchableOpacity onPress={handleReplySubmit}>
+              <Ionicons name="send" size={25} color="black" />
+            </TouchableOpacity>
+          </View>
+        )}
+        {/* Đệ quy render replies */}
+        {comment.replies && renderComments(comment.replies, depth + 1)}
+      </View>
+    ));
+  };
 
   return (
     <KeyboardAvoidingView
@@ -239,7 +541,6 @@ const PostDetailScreen = () => {
       <SafeAreaView style={styles.container}>
         {post && (
           <ScrollView style={styles.cardContainer}>
-            {/* Post Details */}
             <View style={styles.backButtonContainer}>
               <TouchableOpacity onPress={() => navigation.goBack()}>
                 <Ionicons name="arrow-back" size={30} color="black" />
@@ -268,12 +569,9 @@ const PostDetailScreen = () => {
                       style={styles.userAvatar}
                     />
                   )}
-                  <Text style={{ flex: 1 }}>{post.User?.name}</Text>
-                  <FontAwesome6
-                    style={{ flex: 0.1 }}
-                    name="ellipsis"
-                    size={20}
-                  ></FontAwesome6>
+                  <Text style={{ flex: 1, fontSize: 16, fontWeight: "bold" }}>
+                    {post.User?.name}
+                  </Text>
                 </View>
               </View>
               <View style={styles.posttimeView}>
@@ -291,13 +589,12 @@ const PostDetailScreen = () => {
                     (() => {
                       let images = [];
                       try {
-                        // Parse pimage và kiểm tra xem có phải mảng hợp lệ không
                         images = JSON.parse(post.pimage);
                         if (!Array.isArray(images) || images.length === 0)
-                          return null; // Không hiển thị nếu không có ảnh
+                          return null;
                       } catch (e) {
                         console.error("Lỗi khi parse pimage:", e.message);
-                        return null; // Không hiển thị nếu parse lỗi
+                        return null;
                       }
 
                       return (
@@ -335,7 +632,6 @@ const PostDetailScreen = () => {
                 </>
               ) : null}
               <View style={styles.cardStats}>
-                {/* Likes, Comments, and Shares Counters */}
                 <View style={styles.statRow}>
                   <Text style={styles.statText}>{post.plike} lượt thích</Text>
                   <TouchableOpacity
@@ -355,10 +651,7 @@ const PostDetailScreen = () => {
 
                 <View style={styles.statRow}>
                   <Text style={styles.statText}>{post.pcomment} bình luận</Text>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    //onPress={handleComment}
-                  >
+                  <TouchableOpacity style={styles.actionButton}>
                     <Ionicons
                       name="chatbubble-outline"
                       size={16}
@@ -370,10 +663,7 @@ const PostDetailScreen = () => {
 
                 <View style={styles.statRow}>
                   <Text style={styles.statText}>{post.pshare} chia sẻ</Text>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    //onPress={handleShare}
-                  >
+                  <TouchableOpacity style={styles.actionButton}>
                     <Ionicons
                       name="share-social-outline"
                       size={16}
@@ -385,7 +675,7 @@ const PostDetailScreen = () => {
               </View>
             </View>
 
-            {/* Khung nhập bình luận */}
+            {/* Comment box */}
             <View style={styles.commentBox}>
               <TextInput
                 style={styles.textInput}
@@ -402,269 +692,81 @@ const PostDetailScreen = () => {
             <View style={styles.commentsContainer}>
               <Text style={styles.titleComment}>Bình luận</Text>
               {comments.length > 0 ? (
-                comments.map((comment) => (
-                  <View key={comment.cid} style={styles.commentCard}>
-                    <View style={{ flexDirection: "row" }}>
-                      {comment.User?.avatar ? (
-                        <Image
-                          source={{ uri: comment.User.avatar }}
-                          style={styles.userAvatar}
-                        />
-                      ) : (
-                        <Image
-                          source={{ uri: "https://via.placeholder.com/150" }}
-                          style={styles.userAvatar}
-                        />
-                      )}
-                      <View style={styles.contentContainer}>
-                        <Text style={styles.userName}>
-                          {comment.User?.name}
-                        </Text>
-                        <Text style={styles.commentText}>
-                          {comment.comment}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.commentActions}>
-                      <Text style={styles.commentTime}>
-                        {dayjs(comment.timestamp).fromNow()}
-                      </Text>
-                      <TouchableOpacity>
-                        <Text style={styles.actionText2}>Thích</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={{ flexDirection: "row", marginLeft: 3 }}
-                      >
-                        <Ionicons
-                          name="return-down-forward-outline"
-                          size={16}
-                          color="black"
-                        />
-                        <Text style={styles.actionText2}>Reply</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))
+                renderComments(comments)
               ) : (
                 <View style={styles.emptyCommentCard}>
                   <Text style={styles.emptyCommentText}>Chưa có bình luận</Text>
                 </View>
               )}
             </View>
+            <Modal
+              animationType="fade"
+              transparent={true}
+              visible={modalVisible}
+              onRequestClose={() => setModalVisible(false)}
+            >
+              <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPressOut={() => setModalVisible(false)}
+              >
+                <View
+                  style={[
+                    styles.modalContent,
+                    { top: modalPosition.top, right: modalPosition.right },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={styles.optionItem}
+                    onPress={() => {
+                      setEditingCommentId(selectedComment.cid);
+                      setEditingText(selectedComment.comment);
+                      setModalVisible(false);
+                    }}
+                  >
+                    <Ionicons
+                      name="create-outline"
+                      size={24}
+                      color="black"
+                      style={styles.iconModal}
+                    />
+                    <Text style={styles.optionText}>Chỉnh sửa</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.optionItem}
+                    onPress={() => {
+                      setModalVisible(false);
+                      handleDeleteComment();
+                    }}
+                  >
+                    <Ionicons
+                      name="close-circle-outline"
+                      size={24}
+                      color="black"
+                      style={styles.iconModal}
+                    />
+                    <Text style={styles.optionText}>Xoá</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.optionItem}
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <Ionicons
+                      name="log-out-outline"
+                      size={24}
+                      color="black"
+                      style={styles.iconModal}
+                    />
+                    <Text style={styles.optionText}>Huỷ</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            </Modal>
           </ScrollView>
         )}
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 10,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  postContainer: {
-    top: 20,
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
-  cardContainer: {
-    flexDirection: "column",
-    flex: 1,
-  },
-  userInfo: {
-    flexDirection: "column",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  userName: {
-    fontWeight: "bold",
-    marginBottom: 5,
-  },
-  postDesc: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  postImage: {
-    width: "100%",
-    height: 200,
-    borderRadius: 10,
-    marginVertical: 10,
-  },
-  postStats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  cardStats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  statRow: {
-    flexDirection: "column", // Column layout
-    alignItems: "center", // Center align the like/comment/share text
-    marginBottom: 10,
-  },
-  statText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginBottom: 5, // Space between the count and the button
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 5,
-  },
-  actionText: {
-    marginLeft: 5, // Space between the icon and the text
-    fontSize: 16,
-    color: "black",
-  },
-  actionText2: {
-    fontSize: 12,
-    color: "#007AFF",
-    marginRight: 15,
-  },
-  commentsContainer: {
-    marginTop: 20,
-    flexDirection: "column",
-    padding: 5,
-  },
-  commentCard: {
-    flexDirection: "column",
-    padding: 10,
-  },
-  commentText: {
-    marginBottom: 10,
-  },
-  titleComment: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 5,
-  },
-  commentTime: {
-    fontSize: 12,
-    color: "gray",
-    marginRight: 10,
-  },
-  commentActions: {
-    flexDirection: "row",
-    marginTop: 5,
-    marginStart: 50,
-  },
-  noComments: {
-    textAlign: "center",
-    color: "#888",
-  },
-  emptyCommentCard: {
-    backgroundColor: "#d3d3d3", // Màu xám cho khung
-    height: 100, // Chiều cao của khung
-    justifyContent: "center", // Canh giữa theo chiều dọc
-    alignItems: "center", // Canh giữa theo chiều ngang
-    borderRadius: 10, // Bo góc cho khung
-    marginVertical: 10, // Khoảng cách giữa các khung
-  },
-  emptyCommentText: {
-    color: "#888", // Màu chữ nhạt
-    fontSize: 16,
-  },
-  user: {
-    justifyContent: "space-between",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  posttimeText: {
-    color: "gray",
-    size: 20,
-  },
-  posttimeView: {
-    left: 48,
-    bottom: 10,
-  },
-  backButtonContainer: {
-    position: "static",
-    flexDirection: "row",
-    backgroundColor: "#2F95DC",
-    padding: 15,
-  },
-  titleview: {
-    flex: 0.9,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  commentBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 15,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#ddd",
-    backgroundColor: "#fff", // Đảm bảo khung comment luôn có màu nền
-  },
-  textInput: {
-    flex: 1,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    height: 40,
-    backgroundColor: "#f9f9f9", // Màu nền của khung nhập liệu
-  },
-
-  contentContainer: {
-    flexDirection: "column",
-    flex: 1,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 10,
-    padding: 10,
-  },
-  containerImage: {
-    flexGrow: 1,
-    padding: 10,
-  },
-  gridContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  wrapper: {
-    height: 250,
-  },
-  slide: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  image: {
-    width: screenWidth,
-    height: 250,
-    resizeMode: "cover",
-  },
-});
 
 export default PostDetailScreen;

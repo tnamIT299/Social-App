@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
@@ -100,19 +101,14 @@ const NotificationScreen = ({ userId }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.logo}>Thông Báo</Text>
-        <View style={styles.headerIcons}>
-          <TouchableOpacity>
-            <Icon
-              name="search-outline"
-              size={30}
-              color="black"
-              style={styles.icon}
-            />
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.headerText}>Thông báo</Text>
+        <Icon
+          name="search-outline"
+          size={30}
+          color="black"
+          style={styles.icon}
+        />
       </View>
 
       {/* Loading indicator */}
@@ -148,26 +144,27 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    padding: 10,
+    backgroundColor: "#f8f8f8",
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
   },
-  logo: {
+  headerText: {
     fontSize: 28,
     fontWeight: "bold",
     color: "#0066ff",
   },
-  headerIcons: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  icon: {
-    marginHorizontal: 5,
-  },
-  loader: {
+  scrollContainer: {
     flex: 1,
+  },
+  buttonContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 5,
+    maxHeight: 60,
+  },
+  buttonStyle: {
+    backgroundColor: "#00BFFF",
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
   },

@@ -177,6 +177,28 @@ const styles = StyleSheet.create({
     position: "relative",
     marginRight: 10,
   },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-start",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    position: "absolute",
+    backgroundColor: "white",
+    padding: 10,
+    borderRadius: 10,
+    width: 190,
+    zIndex: 999,
+  },
+  optionItem: {
+    flexDirection: "row",
+    paddingVertical: 5,
+  },
+  optionText: {
+    color: "black",
+    fontSize: 15,
+    marginLeft: 10,
+  },
 });
 
 export default styles;
