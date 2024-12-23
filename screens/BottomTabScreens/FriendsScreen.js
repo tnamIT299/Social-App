@@ -385,13 +385,13 @@ const styles = StyleSheet.create({
     right: -5,
     top: -5,
     backgroundColor: "red",
-    borderRadius: 15,
-    paddingHorizontal: 8,
+    borderRadius: 12,
+    paddingHorizontal: 5,
     paddingVertical: 2,
   },
   notificationText: {
     color: "#fff",
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "bold",
   },
 });
