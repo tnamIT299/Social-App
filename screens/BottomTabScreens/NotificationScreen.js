@@ -4,60 +4,89 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   SafeAreaView,
   FlatList,
   Image,
   ActivityIndicator,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
+import { getUserId } from "../../data/getUserData";
 import { supabase } from "../../data/supabaseClient";
+import dayjs from "dayjs";
+import { handlePostDetailScreen } from "../PostScreens/PostFunctions";
+import { useNavigation } from "@react-navigation/native";
 
 const NotificationItem = ({
-  actorName,
   actorAvatar,
-  action,
-  receiverName,
   postTitle,
   time,
+  postId,
+  navigation,
 }) => {
   return (
-    <View style={styles.notificationContainer}>
-      {/* Avatar người thực hiện hành động */}
-      <Image source={{ uri: actorAvatar }} style={styles.avatar} />
+    <TouchableOpacity
+      onPress={() => handlePostDetailScreen(navigation, postId)}
+    >
+      <View style={styles.notificationContainer}>
+        {/* Avatar người thực hiện hành động */}
+        <Image source={{ uri: actorAvatar }} style={styles.avatar} />
 
-      {/* Nội dung thông báo */}
-      <View style={styles.notificationContent}>
-        <Text style={styles.notificationText}>
-          <Text style={styles.actorName}>{actorName}</Text> {action}
-          <Text style={styles.receiverName}> {receiverName}</Text>:
-          <Text style={styles.postTitle}>{postTitle}</Text>
-        </Text>
-        <Text style={styles.time}>{time}</Text>
+        {/* Nội dung thông báo */}
+        <View style={styles.notificationContent}>
+          <Text style={styles.notificationText}>
+            <Text style={styles.postTitle}>{postTitle}</Text>
+          </Text>
+          <Text style={styles.time}>{time}</Text>
+        </View>
+
+        {/* Biểu tượng tùy chọn */}
+        <Icon name="ellipsis-horizontal" size={20} color="#999" />
       </View>
-
-      {/* Biểu tượng tùy chọn */}
-      <Icon name="ellipsis-horizontal" size={20} color="#999" />
-    </View>
+    </TouchableOpacity>
   );
 };
 
 const NotificationScreen = ({ userId }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigation = useNavigation();
 
   // Hàm lấy thông báo từ Supabase
   const fetchNotifications = async () => {
     try {
+      const userId = await getUserId();
       setLoading(true);
       const { data, error } = await supabase
         .from("Notification")
         .select("*")
         .eq("uid", userId) // Lọc thông báo theo uid
-        .order("timesstamp", { ascending: false }); // Sắp xếp thông báo theo thời gian mới nhất
+        .order("timestamp", { ascending: false }); // Sắp xếp thông báo theo thời gian mới nhất
 
       if (error) throw error;
-      setNotifications(data);
+
+      // Lấy thêm thông tin avatar của người thực hiện hành động
+      const notificationsWithAvatar = await Promise.all(
+        data.map(async (notification) => {
+          const { data: userData, error: userError } = await supabase
+            .from("User")
+            .select("avatar")
+            .eq("uid", notification.related_uid)
+            .single();
+
+          if (userError) {
+            console.error("Lỗi khi lấy thông tin người dùng:", userError);
+            return null;
+          }
+
+          return {
+            ...notification,
+            actorAvatar: userData?.avatar || "https://via.placeholder.com/150",
+          };
+        })
+      );
+
+      // Lọc các thông báo có dữ liệu hợp lệ
+      setNotifications(notificationsWithAvatar.filter(Boolean));
     } catch (error) {
       console.error("Lỗi khi lấy thông báo:", error);
     } finally {
@@ -92,15 +121,14 @@ const NotificationScreen = ({ userId }) => {
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.nid}
+          keyExtractor={(item) => item.nid.toString()} // Đảm bảo rằng keyExtractor trả về chuỗi
           renderItem={({ item }) => (
             <NotificationItem
-              actorName={item.related_uid}
-              actorAvatar="https://via.placeholder.com/50" // Thay bằng URL avatar thật nếu có
-              action={item.notification_type}
-              receiverName="Bạn" // Người nhận thông báo là chính người dùng
-              postTitle={item.Post?.pTitle || ""}
-              time={new Date(item.timeStamp).toLocaleString()}
+              postId={item.post_id}
+              navigation={navigation}
+              actorAvatar={item.actorAvatar}
+              postTitle={item.notification || ""}
+              time={dayjs(item.timestamp).fromNow()}
             />
           )}
           ListEmptyComponent={
@@ -170,14 +198,6 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 16,
     lineHeight: 22,
-  },
-  actorName: {
-    fontWeight: "bold",
-    color: "#FFF",
-  },
-  receiverName: {
-    fontWeight: "bold",
-    color: "#FFD700",
   },
   postTitle: {
     color: "#00BFFF",

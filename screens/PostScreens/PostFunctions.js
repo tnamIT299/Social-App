@@ -208,7 +208,10 @@ export const handleLike = async (
 
     // Cập nhật số lượt thích trong cơ sở dữ liệu
     await updateLikeCount(postId, !isLiked, userId);
-    notifyLikePost(userId, postId);
+    // Gửi thông báo nếu người dùng vừa nhấn thích (chứ không phải hủy thích)
+    if (!isLiked) {
+      await notifyLikePost(userId, postId); // Gửi thông báo
+    }
   } catch (error) {
     console.error("Lỗi khi xử lý thích bài viết:", error.message);
     setError(error.message); // Đặt lỗi nếu có

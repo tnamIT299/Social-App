@@ -1,24 +1,37 @@
 import { supabase } from "../data/supabaseClient"; // Replace with your correct Supabase path
+import { getUserName } from "../data/getUserData";
 
-// Function to send a "like" notification for a post
+// Hàm gửi thông báo khi bài viết được like
 export const notifyLikePost = async (likerId, postId) => {
   try {
-    // Fetch the post details (title and the post owner's user ID)
-    const { data: post, error: postError } = await supabase
+    // Lấy thông tin bài viết (người đăng bài và tiêu đề bài viết)
+    const { data: postDetails, error: postError } = await supabase
       .from("Post")
-      .select("uid, ptitle")
+      .select("uid, ptitle, User(name)")
       .eq("pid", postId)
       .single();
 
     if (postError) throw postError;
 
-    // Send the like notification
+    const {
+      uid: postOwnerId,
+      ptitle: postTitle,
+      User: postOwner,
+    } = postDetails;
+
+    // Lấy tên người dùng đã like bài viết
+    const likerName = await getUserName();
+
+    // Soạn nội dung thông báo
+    const notificationMessage = `${likerName} đã like bài viết của ${postOwner.name}: "${postTitle}"`;
+
+    // Gửi thông báo like
     const { error: notifError } = await supabase.from("Notification").insert({
-      uid: post.uid, // Post author (receiver)
-      related_uid: likerId, // Liker (actor)
-      post_id: postId, // Post ID
+      uid: postOwnerId, // Người nhận thông báo (người đăng bài)
+      related_uid: likerId, // Người thực hiện hành động (người like)
+      post_id: postId, // ID bài viết
       notification_type: "like",
-      notification: `Người dùng ${likerId} đã like bài viết "${post.pTitle}"`,
+      notification: notificationMessage,
       timestamp: getLocalISOString(),
     });
 
@@ -30,25 +43,38 @@ export const notifyLikePost = async (likerId, postId) => {
   }
 };
 
-// Function to send a "comment" notification for a post
-export const notifyCommentPost = async (commenterId, postId, commentText) => {
+// Hàm gửi thông báo khi bài viết được comment
+export const notifyCommentPost = async (commenterId, postId) => {
   try {
-    // Fetch the post details (title and the post owner's user ID)
-    const { data: post, error: postError } = await supabase
+    // Lấy thông tin bài viết và người đăng bài
+    const { data: postDetails, error: postError } = await supabase
       .from("Post")
-      .select("uid, ptitle")
+      .select("uid, ptitle, User(name)")
       .eq("pid", postId)
       .single();
 
     if (postError) throw postError;
 
-    // Send the comment notification
+    // Giải cấu trúc dữ liệu lấy được
+    const {
+      uid: postOwnerId,
+      ptitle: postTitle,
+      User: { name: postOwnerName }, // Lấy đúng trường 'name' từ đối tượng 'User'
+    } = postDetails;
+
+    // Lấy tên người bình luận
+    const commentName = await getUserName();
+
+    // Soạn nội dung thông báo
+    const notificationMessage = `${commentName} đã bình luận bài viết của ${postOwnerName}: "${postTitle}"`;
+
+    // Tạo thông báo bình luận
     const { error: notifError } = await supabase.from("Notification").insert({
-      uid: post.uid, // Post author (receiver)
-      related_uid: commenterId, // Commenter (actor)
-      post_id: postId, // Post ID
+      uid: postOwnerId, // Người nhận (tác giả bài viết)
+      related_uid: commenterId, // Người bình luận
+      post_id: postId, // ID bài viết
       notification_type: "comment",
-      notification: `Người dùng ${commenterId} đã bình luận bài viết "${post.pTitle}": "${commentText}"`,
+      notification: notificationMessage,
       timestamp: getLocalISOString(),
     });
 
@@ -60,10 +86,64 @@ export const notifyCommentPost = async (commenterId, postId, commentText) => {
   }
 };
 
-// Function to send a "friend post" notification for a post
+// Hàm gửi thông báo khi bài viết được share
+export const notifySharePost = async (sharerId, postId) => {
+  try {
+    // Lấy thông tin bài viết (người đăng bài và tiêu đề bài viết)
+    const { data: postDetails, error: postError } = await supabase
+      .from("Post")
+      .select("uid, ptitle, User(name)")
+      .eq("pid", postId)
+      .single();
+
+    if (postError) throw postError;
+
+    const {
+      uid: postOwnerId,
+      ptitle: postTitle,
+      User: postOwner,
+    } = postDetails;
+
+    // Lấy tên người dùng đã chia sẻ bài viết
+    const sharerName = await getUserName();
+
+    // Soạn nội dung thông báo
+    const notificationMessage = `${sharerName} đã chia sẻ bài viết của ${postOwner.name}: "${postTitle}"`;
+
+    // Gửi thông báo share
+    const { error: notifError } = await supabase.from("Notification").insert({
+      uid: postOwnerId, // Người nhận thông báo (người đăng bài)
+      related_uid: sharerId, // Người thực hiện hành động (người share)
+      post_id: postId, // ID bài viết
+      notification_type: "share",
+      notification: notificationMessage,
+      timestamp: getLocalISOString(),
+    });
+
+    if (notifError) throw notifError;
+
+    console.log("Đã gửi thông báo share thành công!");
+  } catch (error) {
+    console.error("Lỗi khi gửi thông báo share:", error);
+  }
+};
+
+// Function to send a "friend post" notification for a new post
 export const notifyFriendPost = async (friendId, postId) => {
   try {
-    // Fetch the list of friends who accepted the request
+    // Lấy thông tin bài viết và người đăng bài
+    const { data: postDetails, error: postError } = await supabase
+      .from("Post")
+      .select("uid, ptitle")
+      .eq("pid", postId)
+      .single();
+
+    if (postError) throw postError;
+
+    const postOwnerId = postDetails.uid; // ID của người đăng bài
+    const postTitle = postDetails.ptitle; // Tiêu đề bài viết
+
+    // Lấy danh sách bạn bè đã chấp nhận lời mời
     const { data: friends, error: friendError } = await supabase
       .from("Friendship")
       .select("receiver_id, requester_id")
@@ -72,28 +152,30 @@ export const notifyFriendPost = async (friendId, postId) => {
 
     if (friendError) throw friendError;
 
-    // Fetch the post details (post title)
-    const { data: post, error: postError } = await supabase
-      .from("Post")
-      .select("pTitle")
-      .eq("pid", postId)
-      .single();
+    // Lấy tên người dùng đã like bài viết
+    const postOwnerName = await getUserName();
 
-    if (postError) throw postError;
+    // Soạn nội dung thông báo
+    const notificationMessage = `${postOwnerName} đã đăng bài mới: "${postTitle}"`;
 
-    // Send notifications to all friends
-    const notifications = friends.map((friend) => ({
-      uid:
+    // Tạo mảng chứa các thông báo
+    const notifications = friends.map((friend) => {
+      const friendUid =
         friend.receiver_id === friendId
           ? friend.requester_id
-          : friend.receiver_id, // Receiver (friend)
-      related_uid: friendId, // Post creator (friend of the receiver)
-      post_id: postId, // Post ID
-      notification_type: "friend_post",
-      notification: `Bạn của bạn (${friendId}) đã đăng bài mới: "${post.pTitle}"`,
-      timestamp: getLocalISOString(),
-    }));
+          : friend.receiver_id; // Lấy UID bạn bè để gửi thông báo
 
+      return {
+        uid: friendUid, // Người nhận thông báo (bạn bè)
+        related_uid: postOwnerId, // Người đăng bài
+        post_id: postId, // ID bài viết
+        notification_type: "friend_post", // Loại thông báo (bài đăng mới của bạn bè)
+        notification: notificationMessage, // Nội dung thông báo
+        timestamp: getLocalISOString(), // Thời gian thông báo
+      };
+    });
+
+    // Chèn tất cả thông báo vào bảng Notification một lần
     const { error: notifError } = await supabase
       .from("Notification")
       .insert(notifications);
