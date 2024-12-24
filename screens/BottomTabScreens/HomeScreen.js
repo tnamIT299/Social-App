@@ -54,12 +54,12 @@ const HomeScreen = () => {
 
   const handleSearchUser = () => {
     toggleSearchMenu(); // Đóng menu
-    navigation.navigate("UserSearchScreen"); // Điều hướng đến màn hình tìm kiếm người dùng
+    navigation.navigate("UserSearchScreen"); 
   };
 
   const handleSearchPost = () => {
     toggleSearchMenu(); // Đóng menu
-    navigation.navigate("PostSearchScreen"); // Điều hướng đến màn hình tìm kiếm bài viết
+    navigation.navigate("PostSearchScreen"); 
   };
 
   useFocusEffect(
@@ -67,7 +67,6 @@ const HomeScreen = () => {
       const loadPosts = async () => {
         setLoading(true);
         try {
-          // Gọi hàm fetchPosts và truyền các hàm setPosts, setLoading, setError vào
           await fetchPosts(setPosts, setLoading, setError);
         } catch (error) {
           console.error("Error fetching posts:", error);

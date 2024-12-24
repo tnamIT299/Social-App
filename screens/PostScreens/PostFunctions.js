@@ -1,7 +1,10 @@
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
 import { sendComment } from "../../server/CommentService";
-import { notifyLikePost } from "../../server/notificationService";
+import {
+  notifyCommentPost,
+  notifyLikePost,
+} from "../../server/notificationService";
 
 // Lấy danh sách bài viết với quyền công khai và thông tin người dùng liên quan
 export const fetchPosts = async (setPosts, setLoading, setError) => {
@@ -379,7 +382,7 @@ export const handleSendComment = async (
   setComments,
   setNewComment
 ) => {
-  // Lấy dữ liệu id người dùng
+  // Lấy ID người dùng
   const userId = await getUserId();
 
   if (!userId) {
@@ -389,9 +392,9 @@ export const handleSendComment = async (
 
   if (newComment.trim() === "") return; // Không gửi bình luận rỗng
 
-  // Tạo bình luận tạm thời để hiển thị lên giao diện ngay lập tức
+  // Tạo bình luận tạm thời để hiển thị ngay lập tức
   const tempComment = {
-    cid: Date.now(), // Sử dụng tạm thời ID để không trùng lặp
+    cid: Date.now(), // ID tạm thời duy nhất
     comment: newComment,
     User: {
       name: userName,
@@ -399,13 +402,6 @@ export const handleSendComment = async (
     },
     timestamp: new Date().toISOString(),
   };
-
-  // Thêm bình luận mới vào giao diện ngay lập tức
-  setComments((prevComments) =>
-    [tempComment, ...prevComments].sort(
-      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-    )
-  );
 
   // Reset khung nhập liệu
   setNewComment("");
@@ -428,7 +424,7 @@ export const handleSendComment = async (
     } else {
       // Tăng số lượng bình luận
       await incrementCommentCount(postId);
-
+      await notifyCommentPost(userId, postId);
       // Trả về bình luận đã gửi thành công
       return {
         ...tempComment,
@@ -445,6 +441,7 @@ export const handleSendComment = async (
     return null; // Trả về null nếu có lỗi xảy ra
   }
 };
+
 // Tăng số lượng bình luận
 const incrementCommentCount = async (postId) => {
   try {

@@ -1,5 +1,5 @@
 import { supabase } from "../data/supabaseClient"; // Replace with your correct Supabase path
-import { getUserName } from "../data/getUserData";
+import { getUserId, getUserName } from "../data/getUserData";
 
 // Hàm gửi thông báo khi bài viết được like
 export const notifyLikePost = async (likerId, postId) => {

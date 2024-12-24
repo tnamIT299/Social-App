@@ -20,7 +20,7 @@ import {
 const FriendsScreen = ({ route }) => {
   const [activeSection, setActiveSection] = useState("requests"); // Trạng thái mặc định là 'requests'
   const [requests, setRequests] = useState([]);
-  const [requestCount, setRequestCount] = useState(0); // Đếm số lượng lời mời kết bạn
+  const [requestCount, setRequestCount] = useState(0);
   const [suggestions, setSuggestions] = useState([]);
   const [friendList, setFriendList] = useState([]);
   const [sentInvitations, setSentInvitations] = useState([]);
@@ -74,13 +74,12 @@ const FriendsScreen = ({ route }) => {
           name: req.requester.name,
         }))
       );
-      setRequestCount(data.length); // Cập nhật số lượng lời mời kết bạn
+      setRequestCount(data.length); 
     }
   };
 
   const fetchSuggestions = async () => {
     try {
-      // Lấy dữ liệu người dùng hiện tại
       const { data: sessionData, error: sessionError } =
         await supabase.auth.getSession();
       if (sessionError) throw sessionError;
@@ -250,7 +249,7 @@ const FriendsScreen = ({ route }) => {
       <ScrollView
         horizontal={true}
         style={styles.buttonContainer}
-        showsHorizontalScrollIndicator={false} // Hides the scroll indicator for a cleaner look
+        showsHorizontalScrollIndicator={false}
       >
         <View style={{ flexDirection: "row", maxHeight: 40 }}>
           <TouchableOpacity
@@ -374,11 +373,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     paddingHorizontal: 20,
     paddingVertical: 5,
-    shadowColor: "#000", // Add shadow for better visual effect
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
-    elevation: 5, // Shadow for Android
+    elevation: 5,
   },
   notificationBadge: {
     position: "absolute",

@@ -116,8 +116,8 @@ const NotificationScreen = ({ userId }) => {
       const { data, error } = await supabase
         .from("Notification")
         .select("*")
-        .eq("uid", userId) // Lọc thông báo theo uid
-        .order("timestamp", { ascending: false }); // Sắp xếp thông báo theo thời gian mới nhất
+        .eq("uid", userId)
+        .order("timestamp", { ascending: false });
 
       if (error) throw error;
 
@@ -156,6 +156,46 @@ const NotificationScreen = ({ userId }) => {
     }
   };
 
+  // Tích hợp logic Realtime để lắng nghe thông báo mới
+  useEffect(() => {
+    let notificationSubscription;
+
+    const subscribeToNotifications = async () => {
+      const userId = await getUserId();
+
+      notificationSubscription = supabase
+        .channel("notifications")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT", // Lắng nghe sự kiện thêm mới
+            schema: "public",
+            table: "Notification",
+            filter: `uid=eq.${userId}`, // Chỉ nhận thông báo liên quan đến userId
+          },
+          (payload) => {
+            console.log("New notification received:", payload.new);
+
+            // Thêm thông báo mới vào danh sách
+            setNotifications((prevNotifications) => [
+              payload.new, // Thông báo mới ở đầu danh sách
+              ...prevNotifications,
+            ]);
+          }
+        )
+        .subscribe();
+    };
+
+    subscribeToNotifications();
+
+    return () => {
+      if (notificationSubscription) {
+        supabase.removeChannel(notificationSubscription);
+      }
+    };
+  }, []);
+
+  // Lấy thông báo khi màn hình được load lần đầu
   useEffect(() => {
     fetchNotifications();
   }, [userId]);
@@ -179,7 +219,7 @@ const NotificationScreen = ({ userId }) => {
         <FlatList
           style={{ marginBottom: 70 }}
           data={notifications}
-          keyExtractor={(item) => item.nid.toString()} // Đảm bảo rằng keyExtractor trả về chuỗi
+          keyExtractor={(item) => item.nid.toString()}
           renderItem={({ item }) => (
             <NotificationItem
               postId={item.post_id}
@@ -188,7 +228,7 @@ const NotificationScreen = ({ userId }) => {
               postTitle={item.notification || ""}
               time={dayjs(item.timestamp).fromNow()}
               nid={item.nid}
-              onDelete={handleDeleteNotification} // Truyền hàm xóa thông báo
+              onDelete={handleDeleteNotification}
             />
           )}
           ListEmptyComponent={

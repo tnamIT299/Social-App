@@ -114,7 +114,7 @@ const PostDetailScreen = () => {
 
       // Sắp xếp bình luận theo thời gian
       const sortedComments = commentsData.sort(
-        (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
       );
 
       // Chuyển đổi danh sách bình luận thành dạng cây phân cấp
@@ -253,8 +253,7 @@ const PostDetailScreen = () => {
 
     // Cập nhật lại comments và số lượng bình luận
     setComments((prevComments) => {
-      // Giữ nguyên bình luận cũ và thêm bình luận mới
-      return [...prevComments, updatedComments];
+      return [updatedComments,...prevComments];
     });
 
     // Cập nhật lại số lượng bình luận trong post
