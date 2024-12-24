@@ -16,7 +16,7 @@ import styles from "./style/styleCommentSection";
 
 const CommentSection = ({
   postId,
-  initialComments,
+  initialComments = [],
   setComments,
   userName,
   userAvatar,
@@ -27,14 +27,21 @@ const CommentSection = ({
 
   // Cập nhật comments khi nhận được props mới
   useEffect(() => {
-    if (initialComments && initialComments.length !== comments.length) {
-      setLocalComments(initialComments);
+    // Kiểm tra nếu initialComments không phải mảng, đặt nó về mảng rỗng
+    if (
+      Array.isArray(initialComments) &&
+      initialComments.length !== comments.length
+    ) {
+      const uniqueComments = Array.from(
+        new Map(
+          initialComments.map((comment) => [comment.cid, comment])
+        ).values()
+      );
+      setLocalComments(uniqueComments);
     }
   }, [initialComments]);
 
   const handleComment = async () => {
-    //console.log("Bắt đầu gửi bình luận:", newComment); // In ra bình luận đang gửi
-
     if (newComment.trim()) {
       try {
         const addedComment = await handleSendComment(
@@ -46,24 +53,25 @@ const CommentSection = ({
           setNewComment
         );
 
-        //console.log("Bình luận đã được thêm:", addedComment); // In ra bình luận vừa thêm
-
         if (addedComment) {
-          const userId = await getUserId();
-          // Cập nhật comments nội bộ
-          setLocalComments((prevComments) => [...prevComments, addedComment]);
+          // Cập nhật comments nội bộ và đảm bảo không trùng lặp
+          setLocalComments((prevComments) => {
+            // Lọc các bình luận đã tồn tại và thêm mới bình luận
+            const uniqueComments = prevComments.filter(
+              (comment) => comment.cid !== addedComment.cid
+            );
+            return [...uniqueComments, addedComment];
+          });
 
           setNewComment(""); // Xóa input sau khi gửi
-
-          await notifyCommentPost(userId, postId);
         } else {
-          console.warn("Không có bình luận nào được thêm."); // Cảnh báo nếu không có bình luận được thêm
+          console.warn("Không có bình luận nào được thêm.");
         }
       } catch (error) {
-        console.error("Lỗi khi gửi bình luận:", error); // In ra lỗi nếu có
+        console.error("Lỗi khi gửi bình luận:", error);
       }
     } else {
-      console.warn("Bình luận không hợp lệ (trống)."); // Cảnh báo nếu bình luận trống
+      console.warn("Bình luận không hợp lệ (trống).");
     }
   };
 
@@ -75,7 +83,10 @@ const CommentSection = ({
           <Text style={styles.titleComment}>Bình luận</Text>
           {comments.length > 0 ? (
             comments.slice(0, 2).map((comment) => (
-              <View key={comment.cid} style={styles.commentCard}>
+              <View
+                key={`${comment.cid}-${comment.timestamp}-${comment.User?.uid}-${postId}`}
+                style={styles.commentCard}
+              >
                 <View style={{ flexDirection: "row" }}>
                   <Image
                     source={{
@@ -143,7 +154,5 @@ const CommentSection = ({
     </View>
   );
 };
-
-
 
 export default CommentSection;

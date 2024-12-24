@@ -156,6 +156,46 @@ const NotificationScreen = ({ userId }) => {
     }
   };
 
+  // Tích hợp logic Realtime để lắng nghe thông báo mới
+  useEffect(() => {
+    let notificationSubscription;
+
+    const subscribeToNotifications = async () => {
+      const userId = await getUserId();
+
+      notificationSubscription = supabase
+        .channel("notifications")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT", // Lắng nghe sự kiện thêm mới
+            schema: "public",
+            table: "Notification",
+            filter: `uid=eq.${userId}`, // Chỉ nhận thông báo liên quan đến userId
+          },
+          (payload) => {
+            console.log("New notification received:", payload.new);
+
+            // Thêm thông báo mới vào danh sách
+            setNotifications((prevNotifications) => [
+              payload.new, // Thông báo mới ở đầu danh sách
+              ...prevNotifications,
+            ]);
+          }
+        )
+        .subscribe();
+    };
+
+    subscribeToNotifications();
+
+    return () => {
+      if (notificationSubscription) {
+        supabase.removeChannel(notificationSubscription);
+      }
+    };
+  }, []);
+
+  // Lấy thông báo khi màn hình được load lần đầu
   useEffect(() => {
     fetchNotifications();
   }, [userId]);
