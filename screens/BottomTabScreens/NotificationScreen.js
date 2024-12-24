@@ -116,8 +116,8 @@ const NotificationScreen = ({ userId }) => {
       const { data, error } = await supabase
         .from("Notification")
         .select("*")
-        .eq("uid", userId) // Lọc thông báo theo uid
-        .order("timestamp", { ascending: false }); // Sắp xếp thông báo theo thời gian mới nhất
+        .eq("uid", userId)
+        .order("timestamp", { ascending: false });
 
       if (error) throw error;
 
@@ -179,7 +179,7 @@ const NotificationScreen = ({ userId }) => {
         <FlatList
           style={{ marginBottom: 70 }}
           data={notifications}
-          keyExtractor={(item) => item.nid.toString()} // Đảm bảo rằng keyExtractor trả về chuỗi
+          keyExtractor={(item) => item.nid.toString()}
           renderItem={({ item }) => (
             <NotificationItem
               postId={item.post_id}
@@ -188,7 +188,7 @@ const NotificationScreen = ({ userId }) => {
               postTitle={item.notification || ""}
               time={dayjs(item.timestamp).fromNow()}
               nid={item.nid}
-              onDelete={handleDeleteNotification} // Truyền hàm xóa thông báo
+              onDelete={handleDeleteNotification}
             />
           )}
           ListEmptyComponent={

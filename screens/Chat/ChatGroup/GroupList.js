@@ -28,9 +28,9 @@ const GroupListTab = () => {
   // Lấy UID người dùng
   useEffect(() => {
     const fetchUserId = async () => {
-      const id = await getUserId(); // Giả định hàm getUserId trả về UID từ Supabase
+      const id = await getUserId(); 
       setUserUid(id);
-      console.log("User UID:", id); // Log UID để kiểm tra
+      console.log("User UID:", id);
     };
     fetchUserId();
   }, []);
@@ -38,10 +38,9 @@ const GroupListTab = () => {
   // Lấy danh sách nhóm mà người dùng tham gia
   useEffect(() => {
     const fetchGroups = async () => {
-      if (!userUid) return; // Đợi cho đến khi UID của người dùng được thiết lập
+      if (!userUid) return; 
 
       try {
-        // Truy vấn Participant để lấy groupid
         const { data: participantData, error: participantError } =
           await supabase
             .from("Participant")
@@ -54,18 +53,17 @@ const GroupListTab = () => {
           return;
         }
 
-        console.log("Participant Data:", participantData); // Log dữ liệu Participant
+        console.log("Participant Data:", participantData);
 
         const groupIds = participantData.map(
           (participant) => participant.groupid
         );
 
         if (groupIds.length === 0) {
-          setGroups([]); // Nếu không có nhóm nào, trả về danh sách rỗng
+          setGroups([]);
           return;
         }
 
-        // Truy vấn Group để lấy thông tin chi tiết
         const { data: groupsData, error: groupsError } = await supabase
           .from("Group")
           .select("*")
@@ -76,18 +74,18 @@ const GroupListTab = () => {
           return;
         }
 
-        console.log("Group Data:", groupsData); // Log dữ liệu Group
+        console.log("Group Data:", groupsData); 
 
-        setGroups(groupsData); // Lưu danh sách nhóm
+        setGroups(groupsData); 
       } catch (error) {
         console.error("Error fetching group data:", error);
       } finally {
-        setLoading(false); // Kết thúc trạng thái tải
+        setLoading(false);
       }
     };
 
     fetchGroups();
-  }, [userUid]); // Chạy lại khi userUid thay đổi
+  }, [userUid]);
 
   const renderGroup = ({ item }) => {
     const groupIcon = item.groupicon ? JSON.parse(item.groupicon)[0] : null;
@@ -120,12 +118,12 @@ const GroupListTab = () => {
     setSearchText(text);
 
     if (text === "") {
-      setFilteredGroups(groups); // Nếu không có tìm kiếm, hiển thị tất cả nhóm
+      setFilteredGroups(groups); 
     } else {
       const filtered = groups.filter((item) =>
         item.grouptitle.toLowerCase().includes(text.toLowerCase())
       );
-      setFilteredGroups(filtered); // Lọc và cập nhật danh sách nhóm
+      setFilteredGroups(filtered); 
     }
   };
 
@@ -147,7 +145,6 @@ const GroupListTab = () => {
 
   return (
     <View style={styles.container}>
-      {/* Thanh tìm kiếm input */}
       <View style={styles.searchContainer}>
       <TextInput
           style={styles.searchInput}

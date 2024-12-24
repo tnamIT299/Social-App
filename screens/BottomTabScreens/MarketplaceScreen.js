@@ -44,22 +44,21 @@ const MarketplaceScreen = () => {
       return;
     }
 
-    // Lấy uid từ thông tin người dùng
     const uid = user.id;
     const { data, error } = await supabase
-      .from("ProductPost") // tên bảng
-      .select("productid, productname, productprice, productimage"); // các cột cần lấy
+      .from("ProductPost") 
+      .select("productid, productname, productprice, productimage"); 
 
     if (error) {
       console.log("Lỗi khi lấy dữ liệu:", error);
     } else {
       console.log("Dữ liệu:", data);
       setProducts(data);
-      setFilteredProducts(data); // Cập nhật state products với dữ liệu lấy từ Supabase
+      setFilteredProducts(data); 
       setUid(uid);
     }
 
-    setLoading(false); // Tắt loading khi có dữ liệu
+    setLoading(false);
   };
 
   const handleDetailProductPost = (productId, uid) => {
@@ -96,18 +95,18 @@ const MarketplaceScreen = () => {
   };
 
   useEffect(() => {
-    fetchProducts(); // Gọi khi component được mount
+    fetchProducts(); 
   }, []);
 
   useEffect(() => {
     if (productCategory) {
-      fetchProductsType(); // Chỉ gọi khi có productCategory
+      fetchProductsType(); 
     }
   }, [productCategory]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchProducts(); // Gọi lại khi màn hình nhận focus
+      fetchProducts(); 
     }, [])
   );
 

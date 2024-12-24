@@ -400,13 +400,6 @@ export const handleSendComment = async (
     timestamp: new Date().toISOString(),
   };
 
-  // Thêm bình luận mới vào giao diện ngay lập tức
-  setComments((prevComments) =>
-    [tempComment, ...prevComments].sort(
-      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-    )
-  );
-
   // Reset khung nhập liệu
   setNewComment("");
 
