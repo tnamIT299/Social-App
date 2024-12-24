@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   FlatList,
   Image,
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
 import Icon from "react-native-vector-icons/Ionicons";
 import { getUserId } from "../../data/getUserData";
 import { supabase } from "../../data/supabaseClient";
+import { SafeAreaView } from "react-native-safe-area-context";
 import dayjs from "dayjs";
 import { handlePostDetailScreen } from "../PostScreens/PostFunctions";
 import { useNavigation } from "@react-navigation/native";
@@ -169,6 +169,7 @@ const NotificationScreen = ({ userId }) => {
         <ActivityIndicator size="large" color="#0066ff" style={styles.loader} />
       ) : (
         <FlatList
+          style={{ marginBottom: 70 }}
           data={notifications}
           keyExtractor={(item) => item.nid.toString()} // Đảm bảo rằng keyExtractor trả về chuỗi
           renderItem={({ item }) => (
@@ -232,10 +233,10 @@ const styles = StyleSheet.create({
   notificationContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#fff",
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#333",
+    borderBottomColor: "#ddd",
   },
   avatar: {
     width: 50,
@@ -245,6 +246,7 @@ const styles = StyleSheet.create({
   },
   notificationContent: {
     flex: 1,
+    borderRadius: 10,
   },
   notificationText: {
     color: "#FFF",
@@ -252,8 +254,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   postTitle: {
-    color: "#00BFFF",
-    fontWeight: "bold",
+    color: "#000",
   },
   time: {
     color: "#AAA",

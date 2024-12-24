@@ -25,6 +25,7 @@ const CreatePostTab = () => {
   const [userId, setUserId] = useState(null); // Lưu trữ user ID
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
+  const isButtonVisible = postText.trim() !== "" || selectedImages.length > 0;
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -224,9 +225,11 @@ const CreatePostTab = () => {
         )}
       </View>
 
-      <TouchableOpacity onPress={handlePost} style={styles.postButton}>
-        <Text style={styles.postButtonText}>Đăng</Text>
-      </TouchableOpacity>
+      {isButtonVisible && (
+        <TouchableOpacity onPress={handlePost} style={styles.postButton}>
+          <Text style={styles.postButtonText}>Đăng</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
