@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
       position: 'relative',
     },
     video: {
-      width: '100%',
+      width: width,
       height: height * 0.85,
     },
     avatar: {

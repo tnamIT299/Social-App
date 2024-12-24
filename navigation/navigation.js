@@ -19,7 +19,7 @@ import {
 import { Message, MessageSummary, SettingChat, SearchMessage } from "../screens/Chat";
 import { AddGroup, GroupList, GroupMessage, GroupInfor, EditGroup, MemberGroup, AddMember, SearchMessagesTab } from "../screens/Chat/ChatGroup";
 import { Account, ChangePassword } from "../screens/Account";
-import { CreateReel, NotificationsReelScreen } from "../screens/Reel";
+import { CreateReel,ReelDetail,NotificationsReelScreen } from "../screens/Reel";
 
 const Stack = createStackNavigator();
 
@@ -72,6 +72,7 @@ function Navigation() {
 
         {/*Reel Screen*/}
         <Stack.Screen name="CreateReel" component={CreateReel} />
+        <Stack.Screen name="ReelDetail" component={ReelDetail} />
         <Stack.Screen name="NotificationsReelScreen" component={NotificationsReelScreen} />
 
         <Stack.Screen name="AddGroup" component={AddGroup} />

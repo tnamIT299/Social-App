@@ -10,7 +10,7 @@ import {
   Dimensions,
   ScrollView,
   Alert,
-  FlatList,
+  TextInput,
 } from "react-native";
 import {
   useNavigation,
@@ -30,6 +30,7 @@ const Stack = createStackNavigator();
 const ProfileTab = () => {
   const route = useRoute();
   const { userId } = route.params; // Lấy uid từ params
+  const { fromScreen } = route.params || {};
   const [username, setUsername] = useState("Loading...");
   const [avatarUrl, setAvatarUrl] = useState("https://via.placeholder.com/150");
   const [coverUrl, setCoverUrl] = useState(
@@ -148,7 +149,6 @@ const ProfileTab = () => {
       setActiveSection(route.params.activeSection); // Đặt activeSection theo giá trị truyền vào
     }
   }, [route.params?.activeSection]); // Chạy lại khi tham số activeSection thay đổi
-
 
   const handleOpenModal = (event) => {
     const { pageY, pageX } = event.nativeEvent;
@@ -286,11 +286,6 @@ const ProfileTab = () => {
   const handleSectionChange = (section) => {
     setActiveSection(section);  // Cập nhật activeSection khi người dùng nhấn vào một nút
   };
-  const handlePlayVideo = (index) => {
-    setPlayingIndex(index);  // Cập nhật video đang phát
-  };
-
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -448,7 +443,10 @@ const ProfileTab = () => {
                 </TouchableOpacity>
               </View>
             )}
-
+            {/* Post input */}
+            <View style={styles.postInputContainer}>
+              <TextInput onPress={() => navigation.navigate("CreatePost")} style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
+            </View>
             <View style={styles.infoSection}>
               <Text style={styles.info}>Thông tin</Text>
               <View style={styles.infoContainer}>
@@ -534,7 +532,7 @@ const ProfileTab = () => {
   );
 };
 
-const ProfileStack = ({ navigation }) => {
+const ProfileStack = ({ navigation, handleBack }) => {
   return (
     <Stack.Navigator>
       <Stack.Screen
@@ -550,7 +548,7 @@ const ProfileStack = ({ navigation }) => {
             <Icon
               name="chevron-back-outline"
               size={20}
-              onPress={() => navigation.navigate('MenuScreen')}
+              onPress={() => navigation.goBack()}
               style={{ color: "#FFFFFF", marginLeft: 20 }}
             ></Icon>
           ),
@@ -728,13 +726,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between', // Giữa các video
   },
   reelItem: {
-    width: '18%',  // Điều chỉnh kích thước của mỗi reel (sử dụng 48% để có 2 cột)
-    marginBottom: 10,
+    width: '32%',  // Điều chỉnh kích thước của mỗi reel (sử dụng 48% để có 2 cột)
     alignItems: 'center', // Căn giữa nội dung của mỗi reel
   },
   videoContainer: {
     width: '100%',  // Đảm bảo container chiếm toàn bộ chiều rộng của reel
-    height: 100,    // Chiều cao container video
+    height: 200,    // Chiều cao container video
     backgroundColor: 'black',  // Nền đen cho phần còn trống
     justifyContent: 'center',
     alignItems: 'center',  // Căn giữa video trong container
@@ -753,8 +750,8 @@ const styles = StyleSheet.create({
     bottom: 10,
     padding: 15,
     borderRadius: 5,
-    flexDirection: 'row', 
-    alignItems: 'flex-start', 
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   reelInfoContainer: {
     flexDirection: 'row',
@@ -765,6 +762,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     marginLeft: 5,  // Khoảng cách giữa icon và text
+  },
+  postInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+  postInput: {
+    flex: 1,
+    height: 40,
+    borderColor: "#ddd",
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 15,
   },
 });
 

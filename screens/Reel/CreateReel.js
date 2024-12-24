@@ -13,7 +13,7 @@ import { useNavigation } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../data/supabaseClient";
-import Icon from "react-native-vector-icons/FontAwesome";
+import Icon from 'react-native-vector-icons/Ionicons';
 import { Video } from "expo-av";  // Import Video component from expo-av
 
 const Stack = createStackNavigator();
@@ -91,23 +91,8 @@ const CreateReelTab = () => {
         // Hiển thị lựa chọn: Quay video hoặc chọn từ thư viện
         Alert.alert(
             "Chọn Video",
-            "Bạn muốn quay video mới hay chọn từ thư viện?",
+            "Chọn video mà bạn muốn từ thư viện?",
             [
-                {
-                    text: "Quay Video",
-                    onPress: async () => {
-                        const cameraResult = await ImagePicker.launchCameraAsync({
-                            mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-                            videoExportPreset: ImagePicker.VideoExportPreset.H264,
-                        });
-
-                        if (!cameraResult.canceled && cameraResult.assets.length > 0) {
-                            setSelectedVideo(cameraResult.assets[0].uri);
-                        } else {
-                            console.log("Không có video nào được quay hoặc bạn đã hủy.");
-                        }
-                    },
-                },
                 {
                     text: "Chọn từ Thư viện",
                     onPress: async () => {
@@ -297,7 +282,7 @@ const CreateReelStack = ({ navigation }) => {
                             onPress={() => navigation.goBack()}
                             style={{ marginLeft: 10 }}
                         >
-                            <Icon name="arrow-left" size={25} color="#fff" />
+                            <Icon name="arrow-back" size={25} color="#fff" />
                         </TouchableOpacity>
                     ),
                 })}

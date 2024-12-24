@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, FlatList, Modal, TextInput, Alert, Button,Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, FlatList, Modal, TextInput, Alert, Button, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from "../../data/supabaseClient";
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -49,7 +49,7 @@ const ReelsScreen = () => {
         query = query.eq('reelid', UserReelid);
       } else {
         // Nếu không có UserReelid, sắp xếp theo số lượt thích
-        query = query.order('reellike', { ascending: false });
+        query = query.order('timestamp', { ascending: false });
       }
 
       // Thực thi query
@@ -215,7 +215,7 @@ const ReelsScreen = () => {
           {
             nid: generateUniqueId(),
             uid: reel.uid, // Người sở hữu Reel
-            notification: `${userName} đã thích Reel của bạn`, // Nội dung thông báo
+            notification: `${userName} đã thích Reel : "${reel.reeldesc}" của bạn  `, // Nội dung thông báo
             reelid: reel.reelid, // ID của Reel (đảm bảo dùng đúng tên trường)
             related_uid: userId, // ID của người thực hiện like
             notification_type: 'like', // Loại thông báo
@@ -350,7 +350,7 @@ const ReelsScreen = () => {
           {
             nid: generateUniqueId(),
             uid: reel.uid, // Người sở hữu Reel
-            notification: `${userName} đã bình luận Reel của bạn`, // Nội dung thông báo
+            notification: `${userName} đã bình luận Reel : "${reel.reeldesc}" của bạn `, // Nội dung thông báo
             reelid: reel.reelid, // ID của Reel (đảm bảo dùng đúng tên trường)
             related_uid: userId, // ID của người thực hiện like
             notification_type: 'comment', // Loại thông báo
@@ -869,15 +869,17 @@ const ReelsScreen = () => {
     reels.forEach((_, index) => handleLoad(index));
   }, [reels]);
   useEffect(() => {
-    fetchReels(UserReelid);
+    if (UserReelid) {
+      fetchReels(UserReelid); // Fetch dữ liệu cho reel được chọn
+    } else {
+      fetchReels(); // Fetch tất cả các reels
+    }
   }, [UserReelid]);
 
   // Dừng tất cả video khi mất focus
   useFocusEffect(
     React.useCallback(() => {
-      // Mỗi khi màn hình được focus, fetch lại dữ liệu
       fetchReels();
-
       // Dừng tất cả video khi chuyển sang trang khác
       return () => {
         videoRefs.current.forEach((video, index) => {
@@ -994,9 +996,6 @@ const ReelsScreen = () => {
     });
   };
 
-
-
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -1109,16 +1108,37 @@ const ReelsScreen = () => {
                     />
                   </TouchableOpacity>
                   {currentUserId === item.uid && (
-                    <TouchableOpacity
-                      style={{ position: 'absolute', right: 20, top: 20 }}
-                      onPress={() => handleDeleteReel(item)}
-                    >
-                      <Icon
-                        name="trash-outline"
-                        size={25}
-                        color="red"
-                      />
-                    </TouchableOpacity>
+                    <>
+                      {/* Nút Chỉnh Sửa Reel */}
+                      <TouchableOpacity
+                        style={{ position: 'absolute', right: 20, top: 20 }}
+                        onPress={() =>
+                          navigation.navigate("ReelDetail", {
+                            screen: "ReelDetailTab",
+                            params: {
+                              reelId: item.reelid,
+                            },
+                          })
+                        }
+                      >
+                        <Icon
+                          name="create-outline"
+                          size={25}
+                          color="white"  // Màu xanh dương cho nút chỉnh sửa
+                        />
+                      </TouchableOpacity>
+                      {/* Nút Xóa Reel */}
+                      <TouchableOpacity
+                        style={{ position: 'absolute', right: 60, top: 20 }}
+                        onPress={() => handleDeleteReel(item)}
+                      >
+                        <Icon
+                          name="trash-outline"
+                          size={25}
+                          color="white"
+                        />
+                      </TouchableOpacity>
+                    </>
                   )}
 
                   {/* Slider */}
