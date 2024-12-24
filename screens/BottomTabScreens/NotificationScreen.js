@@ -23,7 +23,29 @@ const NotificationItem = ({
   time,
   postId,
   navigation,
+  nid,
+  onDelete,
 }) => {
+  const [showOptions, setShowOptions] = useState(false);
+
+  // Hàm xử lý xóa thông báo
+  const handleDeleteNotification = async () => {
+    try {
+      const { error } = await supabase
+        .from("Notification")
+        .delete()
+        .eq("nid", nid); // Xóa thông báo dựa trên nid
+
+      if (error) throw error;
+
+      // Gọi callback để cập nhật danh sách thông báo
+      onDelete(nid);
+    } catch (error) {
+      console.error("Lỗi khi xóa thông báo:", error);
+      Alert.alert("Lỗi", "Không thể xóa thông báo. Vui lòng thử lại.");
+    }
+  };
+
   return (
     <TouchableOpacity
       onPress={() => handlePostDetailScreen(navigation, postId)}
@@ -41,7 +63,31 @@ const NotificationItem = ({
         </View>
 
         {/* Biểu tượng tùy chọn */}
-        <Icon name="ellipsis-horizontal" size={20} color="#999" />
+        <TouchableOpacity onPress={() => setShowOptions(!showOptions)}>
+          <Icon name="ellipsis-horizontal" size={20} color="#999" />
+        </TouchableOpacity>
+
+        {/* Menu tùy chọn */}
+        {showOptions && (
+          <View style={styles.optionsMenu}>
+            <TouchableOpacity
+              style={styles.optionButton}
+              onPress={() => {
+                Alert.alert(
+                  "Xác nhận",
+                  "Bạn có chắc chắn muốn xóa thông báo này?",
+                  [
+                    { text: "Hủy", style: "cancel" },
+                    { text: "Xóa", onPress: handleDeleteNotification },
+                  ]
+                );
+                setShowOptions(false); // Ẩn menu sau khi thực hiện
+              }}
+            >
+              <Text style={styles.optionText}>Xóa</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -51,6 +97,13 @@ const NotificationScreen = ({ userId }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
+
+  // Hàm xóa thông báo khỏi danh sách
+  const handleDeleteNotification = (nid) => {
+    setNotifications((prevNotifications) =>
+      prevNotifications.filter((notification) => notification.nid !== nid)
+    );
+  };
 
   // Hàm lấy thông báo từ Supabase
   const fetchNotifications = async () => {
@@ -125,6 +178,8 @@ const NotificationScreen = ({ userId }) => {
               actorAvatar={item.actorAvatar}
               postTitle={item.notification || ""}
               time={dayjs(item.timestamp).fromNow()}
+              nid={item.nid}
+              onDelete={handleDeleteNotification} // Truyền hàm xóa thông báo
             />
           )}
           ListEmptyComponent={
@@ -204,6 +259,26 @@ const styles = StyleSheet.create({
     color: "#AAA",
     fontSize: 12,
     marginTop: 5,
+  },
+  optionsMenu: {
+    position: "absolute",
+    top: 50,
+    right: 10,
+    backgroundColor: "#FFF",
+    borderRadius: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  optionButton: {
+    padding: 10,
+  },
+  optionText: {
+    fontSize: 14,
+    color: "#FF0000",
   },
 });
 

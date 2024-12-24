@@ -132,6 +132,11 @@ const CreatePostTab = () => {
       return;
     }
 
+    if (!postText || postText.trim() === "") {
+      Alert.alert("Error", "Post text cannot be empty.");
+      return;
+    }
+
     const postDetails = {
       title: postText,
       desc: postText,
@@ -251,6 +256,5 @@ const CreatePostStack = ({ navigation }) => {
     </Stack.Navigator>
   );
 };
-
 
 export default CreatePostStack;
