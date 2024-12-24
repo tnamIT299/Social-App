@@ -8,6 +8,7 @@ import {
   FlatList,
   Image,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import { getUserId } from "../../data/getUserData";
@@ -110,6 +111,8 @@ const NotificationScreen = ({ userId }) => {
     try {
       const userId = await getUserId();
       setLoading(true);
+
+      // Lấy danh sách thông báo từ Supabase
       const { data, error } = await supabase
         .from("Notification")
         .select("*")
@@ -118,9 +121,14 @@ const NotificationScreen = ({ userId }) => {
 
       if (error) throw error;
 
+      // Lọc thông báo: Loại bỏ những thông báo mà uid === related_uid
+      const filteredNotifications = data.filter(
+        (notification) => notification.uid !== notification.related_uid
+      );
+
       // Lấy thêm thông tin avatar của người thực hiện hành động
       const notificationsWithAvatar = await Promise.all(
-        data.map(async (notification) => {
+        filteredNotifications.map(async (notification) => {
           const { data: userData, error: userError } = await supabase
             .from("User")
             .select("avatar")
