@@ -114,7 +114,7 @@ const PostDetailScreen = () => {
 
       // Sắp xếp bình luận theo thời gian
       const sortedComments = commentsData.sort(
-        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+        (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
       );
 
       // Chuyển đổi danh sách bình luận thành dạng cây phân cấp
@@ -253,7 +253,7 @@ const PostDetailScreen = () => {
 
     // Cập nhật lại comments và số lượng bình luận
     setComments((prevComments) => {
-      return [updatedComments,...prevComments];
+      return [updatedComments, ...prevComments];
     });
 
     // Cập nhật lại số lượng bình luận trong post
@@ -297,12 +297,10 @@ const PostDetailScreen = () => {
   const organizeComments = (comments) => {
     const commentMap = {};
     const roots = [];
-
     // Tạo một map để lưu các comment dựa trên `cid`
     comments.forEach((comment) => {
       comment.replies = []; // Khởi tạo danh sách replies
       commentMap[comment.cid] = comment;
-
       // Nếu là comment gốc (không có parent_cid)
       if (!comment.parent_cid) {
         roots.push(comment);
@@ -314,7 +312,6 @@ const PostDetailScreen = () => {
         }
       }
     });
-
     return roots;
   };
 
@@ -328,23 +325,18 @@ const PostDetailScreen = () => {
       Alert.alert("Lỗi", "Vui lòng nhập nội dung và chọn comment cha.");
       return;
     }
-
     try {
       const userId = await getUserId();
-
       const replyDetails = {
         replyComment: replyText.trim(),
         userId: userId,
         postId: postId,
         parentCid: replyTo,
       };
-
       const response = await sendReplyComment(replyDetails);
-
       if (response.success) {
         // Fetch lại comment từ database để cập nhật đầy đủ
         await fetchPostDetails();
-
         // Reset trạng thái
         setReplyText("");
         setReplyTo(null);
@@ -356,6 +348,7 @@ const PostDetailScreen = () => {
       Alert.alert("Lỗi", "Đã xảy ra lỗi khi gửi reply.");
     }
   };
+
   const handleOpenModal = (event, comment) => {
     const { pageY, pageX } = event.nativeEvent;
     const windowWidth = Dimensions.get("window").width;
@@ -451,8 +444,8 @@ const PostDetailScreen = () => {
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => {
-                  setEditingCommentId(null);
-                  setEditingText("");
+                  setEditingCommentId(null); // Exit editing mode
+                  setEditingText(""); // Clear the input field
                 }}
               >
                 <Text style={styles.cancelButtonText}>Hủy</Text>
@@ -487,7 +480,6 @@ const PostDetailScreen = () => {
                 <Text style={styles.commentText}>{comment.comment}</Text>
               </TouchableOpacity>
             </View>
-
             {/* Actions */}
             <View style={styles.commentActions}>
               <Text style={styles.commentTime}>
@@ -510,7 +502,6 @@ const PostDetailScreen = () => {
             </View>
           </View>
         )}
-
         {/* Render reply input nếu đang reply comment này */}
         {replyTo === comment.cid && (
           <View style={styles.replyInputContainer}>

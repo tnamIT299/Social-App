@@ -24,7 +24,7 @@ export const notifyLikePost = async (likerId, postId) => {
 
     // Soạn nội dung thông báo
     const notificationMessage = `${likerName} đã like bài viết của ${postOwner.name}: "${postTitle}"`;
-
+    if(likerName === postOwner.name) return;
     // Gửi thông báo like
     const { error: notifError } = await supabase.from("Notification").insert({
       uid: postOwnerId, // Người nhận thông báo (người đăng bài)
@@ -67,6 +67,7 @@ export const notifyCommentPost = async (commenterId, postId) => {
 
     // Soạn nội dung thông báo
     const notificationMessage = `${commentName} đã bình luận bài viết của ${postOwnerName}: "${postTitle}"`;
+    if(commentName === postOwnerName) return;
 
     // Tạo thông báo bình luận
     const { error: notifError } = await supabase.from("Notification").insert({
@@ -109,7 +110,7 @@ export const notifySharePost = async (sharerId, postId) => {
 
     // Soạn nội dung thông báo
     const notificationMessage = `${sharerName} đã chia sẻ bài viết của ${postOwner.name}: "${postTitle}"`;
-
+    if(sharerName === postOwner.name) return ;
     // Gửi thông báo share
     const { error: notifError } = await supabase.from("Notification").insert({
       uid: postOwnerId, // Người nhận thông báo (người đăng bài)

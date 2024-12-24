@@ -21,11 +21,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Icon from "react-native-vector-icons/Ionicons";
 import { supabase } from "../../data/supabaseClient";
-import { Video } from 'expo-av';
+import { Video } from "expo-av";
 import { createStackNavigator } from "@react-navigation/stack";
 import PostScreen from "../PostScreens/PostScreen";
 import { fetchPostsUser } from "../PostScreens/PostFunctions";
 import { handleRemoveFriend } from "../FriendScreens/FriendFunction";
+import styles from "./style/styleProfile";
 const Stack = createStackNavigator();
 const ProfileTab = () => {
   const route = useRoute();
@@ -50,11 +51,11 @@ const ProfileTab = () => {
   const [modalPosition, setModalPosition] = useState({ top: 0, right: 0 });
   const [posts, setPosts] = useState([]);
   const [likedPosts, setLikedPosts] = useState({});
-  const [reels, setReels] = useState([]);  // Dữ liệu các reel
+  const [reels, setReels] = useState([]); // Dữ liệu các reel
   const [playingIndex, setPlayingIndex] = useState(null);
   const [error, setError] = useState(null);
   const navigation = useNavigation();
-  const [activeSection, setActiveSection] = useState('post'); // Trạng thái của mục đang hiển thị
+  const [activeSection, setActiveSection] = useState("post"); // Trạng thái của mục đang hiển thị
 
   const fetchUserData = async () => {
     const {
@@ -106,13 +107,13 @@ const ProfileTab = () => {
     // Lấy dữ liệu reel của người dùng
     const { data: reels, error: reelError } = await supabase
       .from("Reels")
-      .select("*")  // Lọc các trường bạn cần
-      .eq("uid", userId);  // Lọc theo user_id
+      .select("*") // Lọc các trường bạn cần
+      .eq("uid", userId); // Lọc theo user_id
 
     if (reelError) {
       console.error("Error fetching reels: ", reelError);
     } else {
-      setReels(reels);  // Lưu dữ liệu reels vào state
+      setReels(reels); // Lưu dữ liệu reels vào state
     }
 
     setLoading(false);
@@ -140,7 +141,7 @@ const ProfileTab = () => {
   );
 
   useEffect(() => {
-    fetchUserData(); // Tải dữ liệu lần đầu khi trang được render 
+    fetchUserData(); // Tải dữ liệu lần đầu khi trang được render
   }, [userId]);
 
   useEffect(() => {
@@ -162,7 +163,6 @@ const ProfileTab = () => {
   };
 
   const handleFriendModal = (event) => {
-
     const { pageY, pageX } = event.nativeEvent; // Lấy tọa độ của sự kiện
     const windowWidth = Dimensions.get("window").width; // Lấy chiều rộng cửa sổ
 
@@ -207,7 +207,11 @@ const ProfileTab = () => {
   };
 
   const goToChatScreen = () => {
-    navigation.navigate('Message', { avatar: avatarUrl, name: username, uid: userId });
+    navigation.navigate("Message", {
+      avatar: avatarUrl,
+      name: username,
+      uid: userId,
+    });
   };
 
   const handleAddFriend = async () => {
@@ -256,7 +260,6 @@ const ProfileTab = () => {
       console.log("Lời mời kết bạn đã được gửi thành công.");
       alert("Lời mời kết bạn đã được gửi thành công.");
       setIsFriendAdded(true);
-
     } catch (error) {
       console.error("Đã xảy ra lỗi:", error.message || error);
     }
@@ -264,14 +267,11 @@ const ProfileTab = () => {
 
   const handleUndo = async () => {
     try {
-      const { error } = await supabase
-        .from("Friendship")
-        .delete()
-        .match({
-          requester_id: currentUserId,
-          receiver_id: userId,
-          status: "pending",
-        });
+      const { error } = await supabase.from("Friendship").delete().match({
+        requester_id: currentUserId,
+        receiver_id: userId,
+        status: "pending",
+      });
 
       if (error) {
         throw error;
@@ -284,7 +284,7 @@ const ProfileTab = () => {
     }
   };
   const handleSectionChange = (section) => {
-    setActiveSection(section);  // Cập nhật activeSection khi người dùng nhấn vào một nút
+    setActiveSection(section); // Cập nhật activeSection khi người dùng nhấn vào một nút
   };
 
   return (
@@ -385,7 +385,10 @@ const ProfileTab = () => {
                     { top: modalPosition.top, right: modalPosition.right },
                   ]}
                 >
-                  <TouchableOpacity style={styles.optionItem} onPress={removeFriend} >
+                  <TouchableOpacity
+                    style={styles.optionItem}
+                    onPress={removeFriend}
+                  >
                     <Ionicons
                       name="person-remove-outline"
                       size={24}
@@ -413,15 +416,25 @@ const ProfileTab = () => {
             {userId !== currentUserId && ( // Kiểm tra xem uid có khác với uid của người dùng hiện tại không
               <View style={styles.iconContainer}>
                 {isFriend ? ( // Kiểm tra xem đã kết bạn chưa
-                  <TouchableOpacity style={styles.iconButton} onPress={handleFriendModal}>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={handleFriendModal}
+                  >
                     <Ionicons name="people-outline" size={24} color="black" />
                     <Text style={styles.buttonText}>Bạn bè</Text>
                   </TouchableOpacity>
                 ) : (
                   <>
                     {isFriendAdded ? ( // Nếu đã gửi lời mời kết bạn
-                      <TouchableOpacity style={styles.iconButton} onPress={handleUndo}>
-                        <Ionicons name="arrow-undo-outline" size={24} color="black" />
+                      <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={handleUndo}
+                      >
+                        <Ionicons
+                          name="arrow-undo-outline"
+                          size={24}
+                          color="black"
+                        />
                         <Text style={styles.buttonText}>Hoàn tác</Text>
                       </TouchableOpacity>
                     ) : (
@@ -437,39 +450,57 @@ const ProfileTab = () => {
                     )}
                   </>
                 )}
-                <TouchableOpacity style={styles.iconButton} onPress={goToChatScreen} >
-                  <Ionicons name="chatbubble-ellipses" size={24} color="black" />
-                  <Text style={styles.buttonText} >Nhắn tin</Text>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={goToChatScreen}
+                >
+                  <Ionicons
+                    name="chatbubble-ellipses"
+                    size={24}
+                    color="black"
+                  />
+                  <Text style={styles.buttonText}>Nhắn tin</Text>
                 </TouchableOpacity>
               </View>
             )}
             {/* Post input */}
             <View style={styles.postInputContainer}>
-              <TextInput onPress={() => navigation.navigate("CreatePost")} style={styles.postInput} placeholder="Bạn đang nghĩ gì ?" />
+              <TextInput
+                onPress={() => navigation.navigate("CreatePost")}
+                style={styles.postInput}
+                placeholder="Bạn đang nghĩ gì ?"
+              />
             </View>
             <View style={styles.infoSection}>
               <Text style={styles.info}>Thông tin</Text>
               <View style={styles.infoContainer}>
-                <Text style={styles.text}>{phone ? `Điện thoại: ${phone}` : null}</Text>
-                <Text style={styles.text}>{email ? `Email: ${email}` : null}</Text>
-                <Text style={styles.text}>{address ? `Địa chỉ: ${address}` : null}</Text>
-                <Text style={styles.text}>{job ? `Công việc: ${job}` : null}</Text>
-                <Text style={styles.text}>{workplace ? `Nơi làm việc: ${workplace}` : null}</Text>
-
+                {phone && <Text style={styles.text}>Điện thoại: {phone}</Text>}
+                {email && <Text style={styles.text}>Email: {email}</Text>}
+                {address && <Text style={styles.text}>Địa chỉ: {address}</Text>}
+                {job && <Text style={styles.text}>Công việc: {job}</Text>}
+                {workplace && (
+                  <Text style={styles.text}>Nơi làm việc: {workplace}</Text>
+                )}
               </View>
             </View>
             <View style={styles.SectionContainer}>
               {/* Các nút để chuyển giữa các phần */}
-              <TouchableOpacity onPress={() => handleSectionChange('post')} style={styles.button}>
+              <TouchableOpacity
+                onPress={() => handleSectionChange("post")}
+                style={styles.button}
+              >
                 <Text style={styles.buttonText}>Bài viết</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleSectionChange('reel')} style={styles.button}>
+              <TouchableOpacity
+                onPress={() => handleSectionChange("reel")}
+                style={styles.button}
+              >
                 <Text style={styles.buttonText}>Reel</Text>
               </TouchableOpacity>
             </View>
 
             {/* Hiển thị phần "Bài viết" */}
-            {activeSection === 'post' && (
+            {activeSection === "post" && (
               <View style={styles.PostSection}>
                 <ScrollView style={{ marginBottom: 30 }}>
                   <PostScreen
@@ -487,7 +518,7 @@ const ProfileTab = () => {
                 </ScrollView>
               </View>
             )}
-            {activeSection === 'reel' && (
+            {activeSection === "reel" && (
               <View style={styles.ReelSection}>
                 <ScrollView style={{ marginBottom: 30 }}>
                   <View style={styles.reelsContainer}>
@@ -496,7 +527,12 @@ const ProfileTab = () => {
                       <TouchableOpacity
                         key={item.reelid}
                         style={styles.reelItem}
-                        onPress={() => navigation.navigate('ReelsScreen', { UserReelid: item.reelid, ProfileId: userId })} // Gửi reelid tới ReelScreen
+                        onPress={() =>
+                          navigation.navigate("ReelsScreen", {
+                            UserReelid: item.reelid,
+                            ProfileId: userId,
+                          })
+                        } // Gửi reelid tới ReelScreen
                       >
                         {/* Hiển thị video */}
                         <View style={styles.videoContainer}>
@@ -512,8 +548,14 @@ const ProfileTab = () => {
                             <Text style={styles.reelInfo}>{item.reellike}</Text>
                           </View>
                           <View style={styles.reelInfoContainer}>
-                            <Icon name="chatbox-outline" size={16} color="#fff" />
-                            <Text style={styles.reelInfo}>{item.reelcomment}</Text>
+                            <Icon
+                              name="chatbox-outline"
+                              size={16}
+                              color="#fff"
+                            />
+                            <Text style={styles.reelInfo}>
+                              {item.reelcomment}
+                            </Text>
                           </View>
                         </View>
                         <Text style={styles.reelText}>{item.reeltitle}</Text>
@@ -523,8 +565,6 @@ const ProfileTab = () => {
                 </ScrollView>
               </View>
             )}
-
-
           </View>
         )}
       </ScrollView>
@@ -558,227 +598,6 @@ const ProfileStack = ({ navigation, handleBack }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 10,
-  },
-  headerBack: {
-    marginTop: 10,
-    marginBottom: 5,
-  },
-  profileSection: {
-    flex: 1,
-  },
-  headerSection: {
-    alignItems: "center",
-    position: "relative",
-  },
-  coverImage: {
-    width: "100%",
-    height: 200,
-    borderWidth: 2,
-    borderColor: "#000000",
-    borderRadius: 10,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    position: "absolute",
-    top: 160,
-    left: "50%",
-    marginLeft: -50,
-    borderWidth: 2,
-    borderColor: "#000000",
-  },
-  usernameIconContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center", // Center the content horizontally
-    width: "100%",
-    marginTop: 10,
-  },
-  username: {
-    fontSize: 20,
-    fontWeight: "bold",
-    textAlign: "center",
-    flex: 1, // Take up remaining space
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 60,
-    marginLeft: 10,
-  },
-  iconRight: {
-    position: "absolute",
-    right: 15, // Adjust as needed for padding
-    top: 10,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "flex-start",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    position: "absolute",
-    backgroundColor: "white",
-    padding: 10,
-    borderRadius: 10,
-    margin: 10,
-    width: 150,
-    zIndex: 999, // Make sure it's on top
-  },
-  optionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 5,
-  },
-  optionText: {
-    color: "black",
-    fontSize: 14,
-    marginLeft: 5,
-  },
-  info: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  infoSection: {
-    padding: 10,
-  },
-  PostSection: {
-    marginLeft: -10,
-    marginRight: -10,
-  },
-  ReelSection: {
-    marginLeft: 10,
-    marginRight: 10,
-  },
-  infoContainer: {
-    alignItems: "flex-start",
-  },
-  iconContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginVertical: 20,
-  },
-  iconButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    paddingTop: 10,
-    paddingRight: 20,
-    paddingBottom: 10,
-    paddingLeft: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'black',
-  },
-  iconModal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 8,
-  },
-  buttonText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: 'black',
-  },
-  optionList: {
-    padding: 20,
-  },
-  optionButton: {
-    paddingVertical: 10,
-  },
-  text: {
-    paddingBottom: 5,
-  },
-  SectionContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    marginLeft: 10,
-  },
-  button: {
-    marginRight: 5,
-    paddingVertical: 5,  // Tăng độ cao cho nút
-    paddingHorizontal: 5, // Tăng độ rộng cho nút
-    borderRadius: 5,  // Bo tròn viền giống nút Android
-    alignItems: 'center', // Canh giữa văn bản trong nút
-    justifyContent: 'center', // Canh giữa văn bản trong nút
-    elevation: 2, // Tạo hiệu ứng bóng đổ nhẹ (giống Android)
-    shadowColor: '#000',  // Màu bóng đổ
-    shadowOpacity: 0.1,  // Độ mờ của bóng
-    shadowRadius: 5,  // Độ mờ của bóng
-    shadowOffset: { width: 0, height: 4 },  // Vị trí bóng
-    width: 80,  // Chiều rộng cố định
-    height: 45,  // Chiều cao cố định
-  },
-  buttonText: {
-    color: 'black',
-    fontSize: 16,
-    fontWeight: 'bold', // Để in đậm hơn
-  },
-  reelsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between', // Giữa các video
-  },
-  reelItem: {
-    width: '32%',  // Điều chỉnh kích thước của mỗi reel (sử dụng 48% để có 2 cột)
-    alignItems: 'center', // Căn giữa nội dung của mỗi reel
-  },
-  videoContainer: {
-    width: '100%',  // Đảm bảo container chiếm toàn bộ chiều rộng của reel
-    height: 200,    // Chiều cao container video
-    backgroundColor: 'black',  // Nền đen cho phần còn trống
-    justifyContent: 'center',
-    alignItems: 'center',  // Căn giữa video trong container
-    marginBottom: 5, // Khoảng cách giữa video và tiêu đề
-  },
-  reelVideo: {
-    width: '100%',  // Đảm bảo video chiếm toàn bộ chiều rộng của item
-    height: '100%',  // Chiều cao video chiếm toàn bộ chiều cao của container
-  },
-  reelText: {
-    textAlign: 'center',
-    marginTop: 5,
-  },
-  overlay: {
-    position: 'absolute',
-    bottom: 10,
-    padding: 15,
-    borderRadius: 5,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  reelInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',  // Căn giữa icon và text
-    margin: 5,  // Khoảng cách giữa các dòng icon-text
-  },
-  reelInfo: {
-    color: '#fff',
-    fontSize: 14,
-    marginLeft: 5,  // Khoảng cách giữa icon và text
-  },
-  postInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-  },
-  postInput: {
-    flex: 1,
-    height: 40,
-    borderColor: "#ddd",
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-  },
-});
+
 
 export default ProfileStack;
