@@ -392,14 +392,9 @@ export const handleSendComment = async (
 
   if (newComment.trim() === "") return; // Không gửi bình luận rỗng
 
-  // Tạo ID tạm thời duy nhất (bao gồm cả số ngẫu nhiên, postId và userId)
-  const tempCommentId = `temp-${postId}-${userId}-${Date.now()}-${Math.random()
-    .toString(36)
-    .substring(2, 15)}`;
-
   // Tạo bình luận tạm thời để hiển thị ngay lập tức
   const tempComment = {
-    cid: tempCommentId, // ID tạm thời duy nhất
+    cid: Date.now(), // ID tạm thời duy nhất
     comment: newComment,
     User: {
       name: userName,
@@ -412,47 +407,38 @@ export const handleSendComment = async (
   setNewComment("");
 
   try {
-    // Gửi bình luận lên cơ sở dữ liệu
-    const savedComment = await sendComment({
+    // Gửi bình luận lên Supabase
+    const success = await sendComment({
       newComment,
       userId,
       postId,
     });
 
-    if (!savedComment) {
+    if (!success) {
+      // Nếu việc gửi thất bại, bạn có thể cảnh báo và xoá bình luận tạm thời khỏi giao diện
       console.error("Lỗi khi gửi bình luận lên máy chủ.");
-      // Xóa bình luận tạm thời nếu gửi thất bại
       setComments((prevComments) =>
         prevComments.filter((comment) => comment.cid !== tempComment.cid)
       );
-      return null;
+      return null; // Trả về null nếu không gửi được bình luận
+    } else {
+      // Tăng số lượng bình luận
+      await incrementCommentCount(postId);
+      await notifyCommentPost(userId, postId);
+      // Trả về bình luận đã gửi thành công
+      return {
+        ...tempComment,
+        cid: success.cid, // Cập nhật ID thật nếu cần thiết
+      };
     }
-
-    // Tăng số lượng bình luận cho bài viết
-    await incrementCommentCount(postId);
-
-    // Cập nhật ID thật của bình luận trong giao diện
-    setComments((prevComments) =>
-      prevComments.map((comment) =>
-        comment.cid === tempComment.cid
-          ? { ...comment, cid: savedComment.cid } // Cập nhật ID thực
-          : comment
-      )
-    );
-
-    // Gửi thông báo cho chủ bài viết (nếu cần)
-    await notifyCommentPost(userId, postId);
-
-    return savedComment; // Trả về bình luận đã lưu
   } catch (error) {
     console.error("Error sending comment:", error.message);
 
-    // Xóa bình luận tạm thời nếu có lỗi
+    // Nếu có lỗi, xóa bình luận tạm thời khỏi giao diện
     setComments((prevComments) =>
       prevComments.filter((comment) => comment.cid !== tempComment.cid)
     );
-
-    return null; // Trả về null nếu lỗi
+    return null; // Trả về null nếu có lỗi xảy ra
   }
 };
 
