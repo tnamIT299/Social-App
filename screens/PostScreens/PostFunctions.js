@@ -1,7 +1,10 @@
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
 import { sendComment } from "../../server/CommentService";
-import { notifyLikePost } from "../../server/notificationService";
+import {
+  notifyCommentPost,
+  notifyLikePost,
+} from "../../server/notificationService";
 
 // Lấy danh sách bài viết với quyền công khai và thông tin người dùng liên quan
 export const fetchPosts = async (setPosts, setLoading, setError) => {
@@ -379,7 +382,7 @@ export const handleSendComment = async (
   setComments,
   setNewComment
 ) => {
-  // Lấy dữ liệu id người dùng
+  // Lấy ID người dùng
   const userId = await getUserId();
 
   if (!userId) {
@@ -389,9 +392,14 @@ export const handleSendComment = async (
 
   if (newComment.trim() === "") return; // Không gửi bình luận rỗng
 
-  // Tạo bình luận tạm thời để hiển thị lên giao diện ngay lập tức
+  // Tạo ID tạm thời duy nhất (bao gồm cả số ngẫu nhiên, postId và userId)
+  const tempCommentId = `temp-${postId}-${userId}-${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2, 15)}`;
+
+  // Tạo bình luận tạm thời để hiển thị ngay lập tức
   const tempComment = {
-    cid: Date.now(), // Sử dụng tạm thời ID để không trùng lặp
+    cid: tempCommentId, // ID tạm thời duy nhất
     comment: newComment,
     User: {
       name: userName,
@@ -400,7 +408,7 @@ export const handleSendComment = async (
     timestamp: new Date().toISOString(),
   };
 
-  // Thêm bình luận mới vào giao diện ngay lập tức
+  // Cập nhật giao diện với bình luận tạm thời
   setComments((prevComments) =>
     [tempComment, ...prevComments].sort(
       (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
@@ -411,40 +419,50 @@ export const handleSendComment = async (
   setNewComment("");
 
   try {
-    // Gửi bình luận lên Supabase
-    const success = await sendComment({
+    // Gửi bình luận lên cơ sở dữ liệu
+    const savedComment = await sendComment({
       newComment,
       userId,
       postId,
     });
 
-    if (!success) {
-      // Nếu việc gửi thất bại, bạn có thể cảnh báo và xoá bình luận tạm thời khỏi giao diện
+    if (!savedComment) {
       console.error("Lỗi khi gửi bình luận lên máy chủ.");
+      // Xóa bình luận tạm thời nếu gửi thất bại
       setComments((prevComments) =>
         prevComments.filter((comment) => comment.cid !== tempComment.cid)
       );
-      return null; // Trả về null nếu không gửi được bình luận
-    } else {
-      // Tăng số lượng bình luận
-      await incrementCommentCount(postId);
-
-      // Trả về bình luận đã gửi thành công
-      return {
-        ...tempComment,
-        cid: success.cid, // Cập nhật ID thật nếu cần thiết
-      };
+      return null;
     }
+
+    // Tăng số lượng bình luận cho bài viết
+    await incrementCommentCount(postId);
+
+    // Cập nhật ID thật của bình luận trong giao diện
+    setComments((prevComments) =>
+      prevComments.map((comment) =>
+        comment.cid === tempComment.cid
+          ? { ...comment, cid: savedComment.cid } // Cập nhật ID thực
+          : comment
+      )
+    );
+
+    // Gửi thông báo cho chủ bài viết (nếu cần)
+    await notifyCommentPost(userId, postId);
+
+    return savedComment; // Trả về bình luận đã lưu
   } catch (error) {
     console.error("Error sending comment:", error.message);
 
-    // Nếu có lỗi, xóa bình luận tạm thời khỏi giao diện
+    // Xóa bình luận tạm thời nếu có lỗi
     setComments((prevComments) =>
       prevComments.filter((comment) => comment.cid !== tempComment.cid)
     );
-    return null; // Trả về null nếu có lỗi xảy ra
+
+    return null; // Trả về null nếu lỗi
   }
 };
+
 // Tăng số lượng bình luận
 const incrementCommentCount = async (postId) => {
   try {

@@ -211,7 +211,7 @@ export const handleSharePost = async (postId, userId, setPosts, setError) => {
 
     // 4. Tải lại toàn bộ danh sách bài viết
     const { data: updatedPosts, error: fetchUpdatedError } =
-      await supabase.from("Post").select(`
+      await supabase.from("Post").select(` 
         * ,
         user:uid(name, avatar), 
         original_post:original_pid( 
@@ -230,14 +230,14 @@ export const handleSharePost = async (postId, userId, setPosts, setError) => {
       throw new Error("Không tìm thấy bài viết nào sau khi chia sẻ.");
     }
 
-    // In toàn bộ danh sách bài viết (debug)
-    console.log("Updated Posts:", updatedPosts);
+    // Debug: In danh sách bài viết
+    //console.log("Updated Posts:", updatedPosts);
 
-    // 5. Cập nhật danh sách bài viết và thông báo thành công
+    // 5. Cập nhật danh sách bài viết
     setPosts(updatedPosts);
     Alert.alert("Thông báo", "Chia sẻ bài viết thành công!");
 
-    // Cập nhật ID của bài viết chia sẻ trong trường hợp này
+    // Lấy ID của bài viết vừa chia sẻ
     const { data: newPost } = await supabase
       .from("Post")
       .select("pid")
@@ -246,8 +246,12 @@ export const handleSharePost = async (postId, userId, setPosts, setError) => {
       .limit(1)
       .single();
 
-    // Gọi notifySharePost với ID bài viết mới
-    await notifySharePost(userId, newPost.pid);
+    if (!newPost) {
+      throw new Error("Không thể xác định bài viết vừa chia sẻ.");
+    }
+    // Gọi notifySharePost với ID của người đăng bài gốc và bài viết chia sẻ
+    const originalUserId = originalPost.uid; // ID người đăng bài gốc
+    await notifySharePost(originalUserId, originalPost.pid); // Truyền đúng ID
   } catch (error) {
     console.error("Error in handleSharePost:", error.message);
     setError(error.message);
