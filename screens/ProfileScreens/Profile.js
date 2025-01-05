@@ -109,7 +109,8 @@ const ProfileTab = () => {
     const { data: reels, error: reelError } = await supabase
       .from("Reels")
       .select("*") // Lọc các trường bạn cần
-      .eq("uid", userId); // Lọc theo user_id
+      .eq("uid", userId) // Lọc theo user_id
+      .order("timestamp", { ascending: false });
 
     if (reelError) {
       console.error("Error fetching reels: ", reelError);
@@ -464,14 +465,15 @@ const ProfileTab = () => {
                 </TouchableOpacity>
               </View>
             )}
-            {/* Post input */}
-            <View style={styles.postInputContainer}>
-              <TextInput
-                onPress={() => navigation.navigate("CreatePost")}
-                style={styles.postInput}
-                placeholder="Bạn đang nghĩ gì ?"
-              />
-            </View>
+            {userId === currentUserId && ( // Kiểm tra xem userId có trùng với currentUserId không
+              <View style={styles.postInputContainer}>
+                <TextInput
+                  onFocus={() => navigation.navigate("CreatePost")} // Điều hướng khi TextInput được focus
+                  style={styles.postInput}
+                  placeholder="Bạn đang nghĩ gì ?"
+                />
+              </View>
+            )}
             <View style={styles.infoSection}>
               <Text style={styles.info}>Thông tin</Text>
               <View style={styles.infoContainer}>
@@ -479,9 +481,7 @@ const ProfileTab = () => {
                 {email && <Text style={styles.text}>Email: {email}</Text>}
                 {address && <Text style={styles.text}>Địa chỉ: {address}</Text>}
                 {job && <Text style={styles.text}>Công việc: {job}</Text>}
-                {workplace && (
-                  <Text style={styles.text}>Nơi làm việc: {workplace}</Text>
-                )}
+                {workplace && <Text style={styles.text}>Nơi làm việc: {workplace}</Text>}
               </View>
             </View>
             <View style={styles.SectionContainer}>

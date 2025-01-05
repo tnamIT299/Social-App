@@ -25,10 +25,10 @@ const ReelsScreen = () => {
   const [playingVideos, setPlayingVideos] = useState({});
   const [muted, setMuted] = useState({});
   const [durations, setDurations] = useState({});
-  const [sliderValue, setSliderValue] = useState({}); // Giá trị slider
-  const [currentTime, setCurrentTime] = useState({}); // Thêm trạng thái currentTime
+  const [sliderValue, setSliderValue] = useState({}); 
+  const [currentTime, setCurrentTime] = useState({}); 
   const [likedReels, setLikedReels] = useState({});
-  const [isModalVisible, setIsModalVisible] = useState(false); // Trạng thái hiển thị Modal
+  const [isModalVisible, setIsModalVisible] = useState(false); 
   const [selectedReel, setSelectedReel] = useState(null);
   const [commentText, setCommentText] = useState('');
   const [replyingCommentId, setReplyingCommentId] = useState(null);
@@ -42,13 +42,13 @@ const ReelsScreen = () => {
   const fetchReels = async (UserReelid = null) => {
     try {
       // Tạo query cơ bản
-      let query = supabase.from('Reels').select('*').eq("permission", "cộng đồng");
+      let query = supabase.from('Reels').select('*');
 
       if (UserReelid) {
         // Nếu có UserReelid, lọc chỉ reel có reelid khớp
         query = query.eq('reelid', UserReelid);
       } else {
-        // Nếu không có UserReelid, sắp xếp theo số lượt thích
+        // Nếu không có UserReelid, sắp xếp theo thời gian
         query = query.order('timestamp', { ascending: false });
       }
 
@@ -196,7 +196,6 @@ const ReelsScreen = () => {
       return 0; // Trả về 0 nếu xảy ra lỗi
     }
   };
-
 
   // 2. Xử lý hành động người dùng
 
@@ -359,12 +358,12 @@ const ReelsScreen = () => {
         ]);
 
       if (error) {
-        console.error("Error sending like notification: ", error);
+        console.error("Error sending comment notification: ", error);
       } else {
         console.log("Notification sent: ", data);
       }
     } catch (err) {
-      console.error("Error in sendLikeNotification: ", err);
+      console.error("Error in sendNotification: ", err);
     }
   };
   const handleComment = async (reel, commentText) => {
@@ -637,7 +636,79 @@ const ReelsScreen = () => {
     );
   };
 
+  const deleteReelAndRelatedData = async (reel) => {
+    try {
 
+      // 1. Xóa dữ liệu từ bảng Notification_Reel
+      const { error: notificationError } = await supabase
+        .from("Notification_Reel")
+        .delete()
+        .eq("reelid", reel.reelid);
+
+        if (notificationError) {
+          console.error("Error deleting notifications:", notificationError);
+          return { success: false, message: "Không thể xóa thông báo của reel." };
+        }
+
+      // 2. Xóa dữ liệu từ bảng ReelComment
+      const { error: commentError } = await supabase
+        .from("ReelComment")
+        .delete()
+        .eq("reelid", reel.reelid);
+
+      if (commentError) {
+        console.error("Error deleting comments:", commentError);
+        return { success: false, message: "Không thể xóa bình luận của reel." };
+      }
+
+      // 3. Xóa dữ liệu từ bảng ReelLike
+      const { error: likeError } = await supabase
+        .from("ReelLike")
+        .delete()
+        .eq("reelid", reel.reelid);
+
+      if (likeError) {
+        console.error("Error deleting likes:", likeError);
+        return { success: false, message: "Không thể xóa lượt thích của reel." };
+      }
+
+      // 4. Xóa file trong bucket
+      const bucketName = "Reel_SocialApp"; // Tên bucket
+      const filePath = reel.reelurl.split(`${bucketName}/`)[1]; // Lấy phần sau "Reel_SocialApp/"
+  
+      if (!filePath) {
+        throw new Error("Không tìm thấy đường dẫn hợp lệ trong URL.");
+      }
+  
+      // Xóa file trong Supabase Storage
+      const { error: storageError } = await supabase.storage
+        .from(bucketName)
+        .remove([filePath]);
+  
+
+      if (storageError) {
+        console.error("Error deleting file in bucket:", storageError);
+        return { success: false, message: "Không thể xóa dữ liệu trong bucket." };
+      }
+
+      // 5. Xóa reel từ bảng Reel
+      const { error: reelError } = await supabase
+        .from("Reels")
+        .delete()
+        .eq("reelid", reel.reelid);
+
+      if (reelError) {
+        console.error("Error deleting reel:", reelError);
+        return { success: false, message: "Không thể xóa reel." };
+      }
+
+      console.log(`Reel with ID ${reel.reelid} and related data have been deleted successfully.`);
+      return { success: true, message: "Reel và tất cả thông tin liên quan đã được xóa thành công." };
+    } catch (err) {
+      console.error("Error in deleteReelAndRelatedData:", err);
+      return { success: false, message: "Đã xảy ra lỗi khi xóa reel và các thông tin liên quan." };
+    }
+  };
 
   const handleDeleteReel = async (reel) => {
     Alert.alert(
@@ -908,69 +979,7 @@ const ReelsScreen = () => {
     if (number < 1_000_000_000) return (number / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'; // Từ 1 triệu đến dưới 1 tỷ
     return (number / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B'; // Trên 1 tỷ
   };
-  const deleteReelAndRelatedData = async (reel) => {
-    try {
-      // 1. Xóa dữ liệu từ bảng ReelComment
-      const { error: commentError } = await supabase
-        .from("ReelComment")
-        .delete()
-        .eq("reelid", reel.reelid);
-
-      if (commentError) {
-        console.error("Error deleting comments:", commentError);
-        return { success: false, message: "Không thể xóa bình luận của reel." };
-      }
-
-      // 2. Xóa dữ liệu từ bảng ReelLike
-      const { error: likeError } = await supabase
-        .from("ReelLike")
-        .delete()
-        .eq("reelid", reel.reelid);
-
-      if (likeError) {
-        console.error("Error deleting likes:", likeError);
-        return { success: false, message: "Không thể xóa lượt thích của reel." };
-      }
-
-      // 3. Xóa dữ liệu từ bảng Notification_Reel
-      const { error: notificationError } = await supabase
-        .from("Notification_Reel")
-        .delete()
-        .eq("reelid", reel.reelid);
-
-      if (notificationError) {
-        console.error("Error deleting notifications:", notificationError);
-        return { success: false, message: "Không thể xóa thông báo của reel." };
-      }
-
-      // 4. Xóa file trong bucket
-      const { error: storageError } = await supabase.storage
-        .from("Reel_SocialApp") // Tên bucket
-        .remove([reel.reelurl]); // Đường dẫn đến file
-
-      if (storageError) {
-        console.error("Error deleting file in bucket:", storageError);
-        return { success: false, message: "Không thể xóa dữ liệu trong bucket." };
-      }
-
-      // 5. Xóa reel từ bảng Reel
-      const { error: reelError } = await supabase
-        .from("Reels")
-        .delete()
-        .eq("reelid", reel.reelid);
-
-      if (reelError) {
-        console.error("Error deleting reel:", reelError);
-        return { success: false, message: "Không thể xóa reel." };
-      }
-
-      console.log(`Reel with ID ${reel.reelid} and related data have been deleted successfully.`);
-      return { success: true, message: "Reel và tất cả thông tin liên quan đã được xóa thành công." };
-    } catch (err) {
-      console.error("Error in deleteReelAndRelatedData:", err);
-      return { success: false, message: "Đã xảy ra lỗi khi xóa reel và các thông tin liên quan." };
-    }
-  };
+  
   const handleGoBack = () => {
     if (setUserReelid) {
       setUserReelid(null); // Đặt lại UserReelid thành null

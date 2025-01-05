@@ -76,11 +76,7 @@ const CreateReelTab = () => {
 
 
     const pickVideo = async () => {
-        const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permissionResult.granted) {
-            alert("Bạn cần cấp quyền truy cập camera!");
-            return;
-        }
+
 
         const mediaLibraryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!mediaLibraryPermission.granted) {
@@ -133,7 +129,6 @@ const CreateReelTab = () => {
             // Tạo tên thư mục dựa trên UID người dùng
             const folderPath = `Reel_SocialApp/${userId}/`;
 
-            // Kiểm tra thư mục có tồn tại không (thực tế Supabase không hỗ trợ kiểm tra trực tiếp thư mục, nhưng có thể kiểm tra bằng cách tải video)
             const { data: videoData, error: videoError } = await supabase.storage
                 .from("Reel_SocialApp")
                 .getPublicUrl(`${folderPath}test.txt`); // Kiểm tra bằng cách thử lấy tệp thử nghiệm
@@ -160,7 +155,7 @@ const CreateReelTab = () => {
                 formData.append("file", {
                     uri: videoUri,
                     name: videoName,
-                    type: "video/mp4", // Loại video, có thể thay đổi nếu video không phải mp4
+                    type: "video/mp4", 
                 });
 
                 const videoResponse = await fetch(
@@ -190,8 +185,7 @@ const CreateReelTab = () => {
             const reel = {
                 reelid: generateUniqueId(),
                 reeldesc: reelDesc || "",
-                reelurl: videoUrl || "", // URL video nếu có
-                permission: "cộng đồng",
+                reelurl: videoUrl || "", 
                 uid: userId || "",
                 timestamp: getLocalISOString(),
             };
@@ -200,7 +194,7 @@ const CreateReelTab = () => {
             const { data, error } = await supabase.from("Reels").insert([reel]);
             if (error) throw error;
 
-            Alert.alert("Success", "Reel created successfully!");
+            Alert.alert("Success", "Tạo Reel thành công !");
             navigation.goBack();
         } catch (error) {
             console.error("Error creating reel:", error.message);
