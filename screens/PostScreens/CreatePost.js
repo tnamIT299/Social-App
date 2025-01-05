@@ -144,7 +144,7 @@ const CreatePostTab = () => {
       const success = await createPost(postDetails);
 
       if (success) {
-        Alert.alert("Success", "Post created successfully!");
+        Alert.alert("Thành công", "Tạo bài viết thành công!");
         navigation.goBack();
       } else {
         Alert.alert("Error", "Error creating post.");

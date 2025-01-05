@@ -371,6 +371,31 @@ export const handleDeletePost = async (postId, setPosts, setLoading) => {
   console.log("Xóa bài viết:", postId);
   setLoading(true); // Bắt đầu trạng thái loading
   try {
+    // Xóa các thông báo liên quan đến bài viết
+    const { error: notificationError } = await supabase
+      .from("Notification")
+      .delete()
+      .eq("post_id", postId);
+
+    if (notificationError) throw notificationError;
+
+    // Xóa các comment liên quan đến bài viết
+    const { error: commentError } = await supabase
+      .from("Comment")
+      .delete()
+      .eq("pid", postId);
+
+    if (commentError) throw commentError;
+
+    // Xóa các lượt thích liên quan đến bài viết
+    const { error: likeError } = await supabase
+      .from("Like")
+      .delete()
+      .eq("post_id", postId);
+
+    if (likeError) throw likeError;
+
+    // Xóa bài viết chính trong bảng Post
     const { error: postError } = await supabase
       .from("Post")
       .delete()
@@ -388,6 +413,7 @@ export const handleDeletePost = async (postId, setPosts, setLoading) => {
     setLoading(false); // Kết thúc trạng thái loading
   }
 };
+
 
 // Xử lý lưu bài viết (chưa thực hiện)
 export const handleSavePost = (postId) => {
