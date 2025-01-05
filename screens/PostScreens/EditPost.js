@@ -176,7 +176,7 @@ const EditPostTab = () => {
       />
 
       <TouchableOpacity onPress={pickImage} style={styles.imagePickerButton}>
-        <Text style={styles.imagePickerText}>Change Image</Text>
+        <Text style={styles.imagePickerText}>Thay đổi hình ảnh</Text>
       </TouchableOpacity>
 
       <View style={styles.imagePreviewContainer}>
@@ -219,7 +219,7 @@ const EditPostTab = () => {
       </View>
 
       <TouchableOpacity onPress={handleEditPost} style={styles.postButton}>
-        <Text style={styles.postButtonText}>Update Post</Text>
+        <Text style={styles.postButtonText}>Đăng</Text>
       </TouchableOpacity>
     </View>
   );
@@ -232,7 +232,7 @@ const EditPostStack = ({ navigation }) => {
         name="EditPostTab"
         component={EditPostTab}
         options={({ navigation }) => ({
-          headerTitle: "Edit Post",
+          headerTitle: "Chỉnh sửa bài viết",
           headerTitleAlign: "center",
           headerStyle: { backgroundColor: "#2F95DC" },
           headerTintColor: "#FFFFFF",

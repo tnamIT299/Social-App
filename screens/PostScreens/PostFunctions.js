@@ -1,17 +1,58 @@
 import { supabase } from "../../data/supabaseClient";
 import { getUserId } from "../../data/getUserData";
 import { sendComment } from "../../server/CommentService";
+import {Alert} from "react-native";
 import {
   notifyCommentPost,
   notifyLikePost,
 } from "../../server/notificationService";
 
-// Lấy danh sách bài viết với quyền công khai và thông tin người dùng liên quan
 export const fetchPosts = async (setPosts, setLoading, setError) => {
   setLoading(true);
   try {
-    // Lấy danh sách bài viết với quyền truy cập là "cộng đồng", bao gồm thông tin người dùng và bài viết gốc
-    const { data: postsData, error: postsError } = await supabase
+    // Lấy ID người dùng hiện tại
+    const userId = await getUserId();
+
+    // 2. Lấy danh sách bạn bè
+    const { data: friends, error: friendError } = await supabase
+      .from("Friendship")
+      .select("receiver_id, requester_id")
+      .or(`receiver_id.eq.${userId},requester_id.eq.${userId}`)
+      .eq("status", "accepted");
+
+    if (friendError) throw new Error(friendError.message);
+
+    // Trích xuất danh sách ID bạn bè
+    const friendIds =
+      friends?.map((friend) =>
+        friend.receiver_id === userId ? friend.requester_id : friend.receiver_id
+      ) || [];
+
+    // Thêm userId vào danh sách friendIds để lấy cả bài đăng của chính người dùng
+    const allRelevantUserIds = [...friendIds, userId];
+
+    // Lấy danh sách bài viết với quyền truy cập là "cộng đồng"
+    const { data: communityPostsData, error: communityPostsError } =
+      await supabase
+        .from("Post")
+        .select(
+          `
+        *,
+        user:uid(uid,name, avatar),
+        original_post:original_pid(
+          ptitle,
+          pdesc,
+          pimage,
+          user:uid(uid, name, avatar)
+        )
+      `
+        )
+        .eq("permission", "cộng đồng");
+
+    if (communityPostsError) throw new Error(communityPostsError.message);
+
+    // Lấy bài viết có quyền "Bạn bè" từ danh sách bạn bè và chính người dùng
+    const { data: friendPostsData, error: friendPostsError } = await supabase
       .from("Post")
       .select(
         `
@@ -25,22 +66,23 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
         )
       `
       )
-      .eq("permission", "cộng đồng");
+      .eq("permission", "bạn bè")
+      .in("uid", allRelevantUserIds);
 
-    if (postsError) throw new Error(postsError.message);
+    if (friendPostsError) throw new Error(friendPostsError.message);
 
-    // Kiểm tra nếu không có bài viết nào
-    if (!postsData || postsData.length === 0) {
+    const allPosts = [
+      ...(communityPostsData || []),
+      ...(friendPostsData || []),
+    ];
+
+    if (allPosts.length === 0) {
       setPosts([]);
       return;
     }
 
-    // Lấy ID người dùng hiện tại
-    const userId = await getUserId();
-
-    // Xử lý các bài viết, thêm thông tin lượt thích và bình luận
     const updatedPosts = await Promise.all(
-      postsData.map(async (post) => {
+      allPosts.map(async (post) => {
         // Lấy trạng thái like cho bài viết
         const { data: likeData, error: likeError } = await supabase
           .from("Like")
@@ -53,10 +95,10 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
 
         const likedByUser = likeData ? likeData.status : false;
 
-        // Lấy danh sách bình luận cho bài viết
+       
         const { data: commentsData, error: commentsError } = await supabase
           .from("Comment")
-          .select("*, User(name, avatar)") // Join để lấy thông tin người dùng
+          .select("*, User(name, avatar)") 
           .eq("pid", post.pid);
 
         if (commentsError) throw new Error(commentsError.message);
@@ -66,7 +108,6 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
           (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
         );
 
-        // Trả về bài viết đã được cập nhật
         return {
           ...post,
           likedByUser,
@@ -75,7 +116,6 @@ export const fetchPosts = async (setPosts, setLoading, setError) => {
       })
     );
 
-    // Sắp xếp các bài viết theo thời gian tạo
     const sortedPosts = updatedPosts.sort(
       (a, b) => new Date(b.createdat) - new Date(a.createdat)
     );
@@ -290,13 +330,24 @@ const updateLikeCount = async (postId, isLiked, userId) => {
 };
 
 // Kiểm tra xem người dùng hiện tại có phải là chủ sở hữu bài viết không
-export const isPostOwner = (postId, userId, posts) => {
+export const isPostOwner = (postId, userId, currentUserId, posts) => {
   if (!Array.isArray(posts)) {
     console.error("posts không phải là một mảng");
     return false;
   }
-  return posts.find((post) => post.pid === postId)?.uid === userId;
+
+  // Tìm bài viết trong mảng posts
+  const post = posts.find((post) => post.pid === postId);
+
+  // Nếu bài viết không tìm thấy hoặc UID của chủ bài viết không khớp với userId, trả về false
+  if (!post || post.uid !== userId) {
+    return false;
+  }
+
+  // So sánh userId (chủ bài viết) với currentUserId (khách), nếu bằng nhau thì là chủ bài viết
+  return userId === currentUserId;
 };
+
 
 // Xử lý điều hướng đến màn hình chỉnh sửa bài viết
 export const handleEditPost = (

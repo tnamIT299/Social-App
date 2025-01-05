@@ -533,7 +533,7 @@ const PostDetailScreen = () => {
           <ScrollView style={styles.cardContainer}>
             <View style={styles.backButtonContainer}>
               <TouchableOpacity onPress={() => navigation.goBack()}>
-                <Ionicons name="arrow-back" size={30} color="black" />
+                <Ionicons name="arrow-back" size={30} color="white" />
               </TouchableOpacity>
               <View style={styles.titleview}>
                 <Text style={styles.title}>Bài đăng của {post.User?.name}</Text>

@@ -38,6 +38,7 @@ const PostScreen = ({
   loading,
   error,
   userId,
+  currentUserId,
   navigation,
   setPosts,
   setLikedPosts,
@@ -48,12 +49,12 @@ const PostScreen = ({
   const [showCommentSection, setShowCommentSection] = useState(null); // Lưu trữ postId đang hiển thị bình luận
   const [userName, setUserName] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
-  const [uid, setUId] = useState("");
+  const [anonymusId, setAnonymusId] = useState("");
   useEffect(() => {
     const fetchUserId = async () => {
       try {
         const id = await getUserId();
-        setUId(id);
+        setAnonymusId(id);
       } catch (error) {
         setError(error.message);
       }
@@ -88,7 +89,7 @@ const PostScreen = ({
         <View style={styles.cardContainer}>
           {Array.isArray(posts) &&
             posts.map((post) => {
-              const isOwner = isPostOwner(post.pid, userId, posts); // Kiểm tra xem người dùng hiện tại có phải là chủ bài viết không
+              const isOwner = isPostOwner(post.pid, userId,currentUserId, posts);
               return (
                 <View key={post.pid} style={styles.card}>
                   <TouchableOpacity
@@ -115,6 +116,7 @@ const PostScreen = ({
                                 screen: "ProfileTab",
                                 params: {
                                   userId: post.user?.uid,
+                                  anonymusId: anonymusId,
                                 },
                               })
                             }
@@ -139,6 +141,7 @@ const PostScreen = ({
                                     screen: "ProfileTab",
                                     params: {
                                       userId: post.original_post.user.uid,
+                                      anonymusId: anonymusId,
                                     },
                                   })
                                 }
@@ -159,6 +162,8 @@ const PostScreen = ({
                           style={{ flex: 0.1 }}
                           postId={post.pid}
                           isOwner={isOwner}
+                          userId={userId}
+                          currentUserId={currentUserId}
                           onEdit={() =>
                             handleEditPost(
                               navigation,

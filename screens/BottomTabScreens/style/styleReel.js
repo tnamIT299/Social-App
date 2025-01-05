@@ -10,17 +10,12 @@ const styles = StyleSheet.create({
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 15,
-      paddingVertical: 10,
+      paddingVertical: 5,
       borderBottomWidth: 1,
       borderBottomColor: '#ddd',
     },
     logoContainer: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      position: 'absolute', // Đặt logo ở vị trí tuyệt đối
-      left: 0,
-      right: 0,
     },
     logo: {
       fontSize: 28,

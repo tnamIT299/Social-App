@@ -119,7 +119,7 @@ const ReelDetailTab = () => {
                     />
 
                     <TouchableOpacity onPress={handleSaveReel} style={styles.saveButton}>
-                        <Text style={styles.saveButtonText}>Save</Text>
+                        <Text style={styles.saveButtonText}>Lưu</Text>
                     </TouchableOpacity>
                 </>
             )}

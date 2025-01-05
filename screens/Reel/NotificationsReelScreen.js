@@ -3,8 +3,10 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native
 import { supabase } from "../../data/supabaseClient";
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { createStackNavigator } from "@react-navigation/stack";
+const Stack = createStackNavigator();
 
-const NotificationsReelScreen = () => {
+const NotificationsReelScreenTab = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation(); // Dùng để điều hướng
@@ -15,7 +17,6 @@ const NotificationsReelScreen = () => {
         const user = await supabase.auth.getUser();
 
         if (!user?.data?.user) {
-          console.error('User not logged in');
           setLoading(false);
           return;
         }
@@ -88,12 +89,12 @@ const NotificationsReelScreen = () => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-back-outline" size={30} color="black" style={styles.icon} />
         </TouchableOpacity>
         <Text style={styles.title}>Thông báo Reel</Text>
-      </View>
+      </View> */}
 
       {/* Danh sách thông báo */}
       <FlatList
@@ -107,6 +108,32 @@ const NotificationsReelScreen = () => {
         }
       />
     </View>
+  );
+};
+
+const NotificationsReelScreenStack = ({ navigation }) => {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="NotificationsReelScreenTab"
+        component={NotificationsReelScreenTab}
+        options={({ navigation }) => ({
+          headerTitle: "Thông báo Reel",
+          headerTitleAlign: "center",
+          headerStyle: { backgroundColor: "#2F95DC" },
+          headerTintColor: "#FFFFFF",
+          headerTitleStyle: { fontWeight: "bold" },
+          headerLeft: () => (
+            <Icon
+              name="arrow-back"
+              size={20}
+              onPress={() => navigation.goBack()}
+              style={{ color: "#FFFFFF", marginLeft: 20 }}
+            ></Icon>
+          ),
+        })}
+      />
+    </Stack.Navigator>
   );
 };
 
@@ -177,4 +204,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default NotificationsReelScreen;
+export default NotificationsReelScreenStack;

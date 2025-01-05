@@ -30,7 +30,8 @@ import styles from "./style/styleProfile";
 const Stack = createStackNavigator();
 const ProfileTab = () => {
   const route = useRoute();
-  const { userId } = route.params; // Lấy uid từ params
+  const { userId, anonymusId} = route.params; // Lấy uid từ params
+  console.log("anonymusId", anonymusId);
   const { fromScreen } = route.params || {};
   const [username, setUsername] = useState("Loading...");
   const [avatarUrl, setAvatarUrl] = useState("https://via.placeholder.com/150");
@@ -508,6 +509,7 @@ const ProfileTab = () => {
                     loading={loading}
                     error={error}
                     userId={userId}
+                    currentUserId={anonymusId}
                     navigation={navigation}
                     setPosts={setPosts}
                     setLikedPosts={setLikedPosts}

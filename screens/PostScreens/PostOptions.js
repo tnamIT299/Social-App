@@ -10,6 +10,8 @@ const PostOptions = ({
   onSave,
   onHide,
   onPrivacyChange,
+  currentUserId,
+  userId,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -42,15 +44,15 @@ const PostOptions = ({
                   <Text style={styles.optionText}>Xóa bài viết</Text>
                 </TouchableOpacity>
                 {/* Tùy chọn quyền riêng tư luôn hiển thị */}
-                <TouchableOpacity onPress={() => onPrivacyChange("public")}>
+                <TouchableOpacity onPress={() => onPrivacyChange("cộng đồng")}>
                   <Text style={styles.optionText}>
                     Quyền riêng tư: Công khai
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => onPrivacyChange("friends")}>
+                <TouchableOpacity onPress={() => onPrivacyChange("bạn bè")}>
                   <Text style={styles.optionText}>Quyền riêng tư: Bạn bè</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => onPrivacyChange("private")}>
+                <TouchableOpacity onPress={() => onPrivacyChange("cá nhân")}>
                   <Text style={styles.optionText}>Quyền riêng tư: Cá nhân</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={closeOptions}>

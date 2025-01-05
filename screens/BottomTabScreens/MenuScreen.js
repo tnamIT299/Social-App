@@ -122,6 +122,7 @@ const MenuScreen = ({ navigation }) => {
             screen: "ProfileTab",
             params: {
               userId: uid,
+              anonymusId:uid,
             },
           })
         }

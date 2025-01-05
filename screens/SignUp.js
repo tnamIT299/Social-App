@@ -38,11 +38,20 @@ const SignUp = ({ navigation }) => {
       return;
     }
 
-    // Regular expression to validate email format
+    const nameRegex = /^\s*[\p{L}][\p{L}\s'-]{0,49}[\p{L}]\s*$/u;
     const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+
+    if(!nameRegex.test(name)) {
+      setError("Tên không hợp lệ");
+      return;
+    }
 
     if (!emailRegex.test(email)) {
       setError("Email không hợp lệ");
+      return;
+    }
+    if (password.length < 8) {
+      Alert.alert("Thông báo", "Mật khẩu phải có ít nhất 8 ký tự");
       return;
     }
 
@@ -77,6 +86,7 @@ const SignUp = ({ navigation }) => {
           } else {
             setError("");
             alert("Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.");
+            navigation.navigate("Login")
           }
         }
       }

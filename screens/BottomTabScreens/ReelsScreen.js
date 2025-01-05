@@ -238,7 +238,6 @@ const ReelsScreen = () => {
     const reelId = reel.reelid;
 
     if (!user.data.user) {
-      console.error("User not logged in");
       return;
     }
 
@@ -837,7 +836,6 @@ const ReelsScreen = () => {
         const user = await supabase.auth.getUser();
 
         if (!user.data.user) {
-          console.error('User not logged in');
           return;
         }
 
@@ -1227,7 +1225,7 @@ const ReelsScreen = () => {
                 >
                   <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                      <Text style={styles.modalTitle}>Comments</Text>
+                      <Text style={styles.modalTitle}>Bình luận</Text>
                       <TouchableOpacity
                         onPress={() => closeModal(selectedReel)}
                         style={styles.closeButton}

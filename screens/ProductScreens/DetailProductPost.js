@@ -121,7 +121,7 @@ const DetailProductPost = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="black" />
+          <Icon name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chi tiết sản phẩm</Text>
       </View>
@@ -241,14 +241,17 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ddd",
+    backgroundColor: "#2F95DC",
     marginBottom: 20,
     padding: 15,
+    alignContent: "center",
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginLeft: 10,
+    color: "white",
+    textAlign: "center",
   },
   productImage: {
     width: "100%",
