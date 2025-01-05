@@ -34,8 +34,7 @@ const ReelDetailTab = () => {
                     .from("Reels")  // Kiểm tra lại tên bảng nếu cần
                     .select("*")
                     .eq("reelid", reelId)  // Kiểm tra lại tên cột "reelid"
-                    .single();  // Lấy duy nhất 1 bản ghi
-
+                    .single();  
                 if (error) {
                     throw error;  // Nếu có lỗi từ Supabase, throw ra để xử lý
                 }
@@ -65,7 +64,7 @@ const ReelDetailTab = () => {
     // Handle saving updated reel description
     const handleSaveReel = async () => {
         if (!reelDesc.trim()) {
-            Alert.alert("Error", "Description cannot be empty.");
+            Alert.alert("Error", "Mô tả không được để trống");
             return;
         }
 
@@ -78,7 +77,7 @@ const ReelDetailTab = () => {
 
             if (error) throw error;
 
-            Alert.alert("Success", "Reel description updated successfully!");
+            Alert.alert("Success", "Mô tả Reel được cập nhật thành công!");
             navigation.goBack(); // Go back to the previous screen
         } catch (error) {
             console.error("Error updating reel:", error);
