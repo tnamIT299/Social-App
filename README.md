@@ -1,7 +1,7 @@
 # Ứng dụng Social Network 🏍️
 <img src="https://www.svgrepo.com/show/452092/react.svg" alt="React Native" width="60" height="60"/> <img src="https://www.vectorlogo.zone/logos/supabase/supabase-icon.svg" alt="Supabase" width="60" height="60"/><img src="https://www.vectorlogo.zone/logos/expoio/expoio-ar21.svg" alt="expo" width="70" height="70"/> <img src="https://www.svgrepo.com/show/353925/javascript.svg" alt="javascript" width="60" height="60"/>
 
-Ứng dụng thi bằng lái xe máy A1 với nhiều chức năng khác nhau giúp người luyện thi nắm chắc kiến thức 
+Một ứng dụng mạng xã hội với các tính năng như tạo bài đăng, xem thước phim, quản lý bạn bè, quản lý bài đăng sản phẩm, chức năng trò chuyện, nhóm hội thoại và thông báo, tất cả đều được thiết kế theo phương pháp lấy người dùng làm trung tâm.
 ## Chức năng
 - Quản lý tài khoản (Đăng nhập, đăng ký, đăng xuất, thay đổi mật khẩu, khôi phục tài khoản).
 - Quản lý bài đăng
@@ -13,7 +13,7 @@
 - Quản lý thông báo
 
 ## Công nghệ
-Ứng dụng GPLX là ứng dụng được viết bằng Javascript và sử dụng Supabase làm database và một số thư viện hỗ trợ UI
+Ứng dụng được viết bằng Javascript và sử dụng Supabase làm database và một số thư viện hỗ trợ UI, được xây dựng thử nghiệm trên Expo Go
 
 ## Một vài hình ảnh demo
 
@@ -40,12 +40,12 @@
 
 3. **Download source code bằng câu lệnh**:
 ```sh
-git clone https://github.com/tnamIT299/GPLX.git
+git clone https://github.com/tnamIT299/GPLX.git](https://github.com/tnamIT299/Social-App.git
 ```
 
 4. **Cài đặt các phụ thuộc**:
 ```sh
-cd GPLX
+cd Social-App
 npm install
 ```
 
