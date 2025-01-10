@@ -40,7 +40,7 @@ Một ứng dụng mạng xã hội với các tính năng như tạo bài đăn
 
 3. **Download source code bằng câu lệnh**:
 ```sh
-git clone https://github.com/tnamIT299/GPLX.git](https://github.com/tnamIT299/Social-App.git
+git clone https://github.com/tnamIT299/Social-App.git
 ```
 
 4. **Cài đặt các phụ thuộc**:
