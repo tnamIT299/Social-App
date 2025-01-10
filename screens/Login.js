@@ -20,7 +20,7 @@ import { saveUserData } from "../data/saveUserData";
 
 const Login = ({ navigation }) => {
   const [email, setEmail] = useState("thinh@gmail.com");
-  const [password, setPassword] = useState("123456");
+  const [password, setPassword] = useState("thinh12345678@@");
   const [error, setError] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
 

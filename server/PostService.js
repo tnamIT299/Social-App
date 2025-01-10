@@ -188,9 +188,9 @@ export const handleSharePost = async (postId, userId, setPosts, setError) => {
       plike: 0,
       pcomment: 0,
       pshare: 0,
-      uid: userId, // ID người chia sẻ
+      uid: userId,
       createdat: getLocalISOString(),
-      original_pid: originalPost.pid, // Liên kết bài viết gốc
+      original_pid: originalPost.pid,
     });
 
     if (insertError) {
@@ -230,9 +230,6 @@ export const handleSharePost = async (postId, userId, setPosts, setError) => {
       throw new Error("Không tìm thấy bài viết nào sau khi chia sẻ.");
     }
 
-    // Debug: In danh sách bài viết
-    //console.log("Updated Posts:", updatedPosts);
-
     // 5. Cập nhật danh sách bài viết
     setPosts(updatedPosts);
     Alert.alert("Thông báo", "Chia sẻ bài viết thành công!");
@@ -249,9 +246,9 @@ export const handleSharePost = async (postId, userId, setPosts, setError) => {
     if (!newPost) {
       throw new Error("Không thể xác định bài viết vừa chia sẻ.");
     }
-    // Gọi notifySharePost với ID của người đăng bài gốc và bài viết chia sẻ
-    const originalUserId = originalPost.uid; // ID người đăng bài gốc
-    await notifySharePost(originalUserId, originalPost.pid); // Truyền đúng ID
+ 
+    const originalUserId = originalPost.uid; 
+    await notifySharePost(originalUserId, originalPost.pid);
   } catch (error) {
     console.error("Error in handleSharePost:", error.message);
     setError(error.message);
