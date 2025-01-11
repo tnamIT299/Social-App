@@ -15,6 +15,9 @@ Một ứng dụng mạng xã hội với các tính năng như tạo bài đăn
 ## Công nghệ
 Ứng dụng được viết bằng Javascript và sử dụng Supabase làm database và một số thư viện hỗ trợ UI, được xây dựng thử nghiệm trên Expo Go
 
+## Đánh giá
+Cải thiện hiệu suất đáng kể so với phiên bản v1 [SocialApp](https://github.com/tnamIT299/SocialApp.git)
+
 ## Một vài hình ảnh demo
 
 <div style="display: flex; justify-content: space-around;">
