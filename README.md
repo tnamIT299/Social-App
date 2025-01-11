@@ -1,4 +1,4 @@
-# Ứng dụng Social Network 🌐📱
+# Ứng dụng Social Network-v2 🌐📱
 <img src="https://www.svgrepo.com/show/452092/react.svg" alt="React Native" width="60" height="60"/> <img src="https://www.vectorlogo.zone/logos/supabase/supabase-icon.svg" alt="Supabase" width="60" height="60"/><img src="https://www.vectorlogo.zone/logos/expoio/expoio-ar21.svg" alt="expo" width="70" height="70"/> <img src="https://www.svgrepo.com/show/353925/javascript.svg" alt="javascript" width="60" height="60"/>
 
 Một ứng dụng mạng xã hội với các tính năng như tạo bài đăng, xem thước phim, quản lý bạn bè, quản lý bài đăng sản phẩm, chức năng trò chuyện, nhóm hội thoại và thông báo, tất cả đều được thiết kế theo phương pháp lấy người dùng làm trung tâm.
