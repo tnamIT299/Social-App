@@ -75,4 +75,5 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
-data/supabaseClient.js
+data/supabaseClient.js 
+
